@@ -71,7 +71,10 @@ import {
   ArrowDownUp,
   Share2,
   MapPin,
+  User,
+  ExternalLink,
 } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { QRCodeSVG } from "qrcode.react"
 import {
   DndContext,
@@ -93,8 +96,15 @@ import { CSS } from "@dnd-kit/utilities"
 import type { Game, Participant, SportCategory, ParticipantBadge, SortMode } from "@/lib/types"
 import { SPORT_CATEGORIES, PARTICIPANT_BADGES } from "@/lib/types"
 
+interface CurrentUser {
+  id: string
+  display_name: string | null
+  avatar_url: string | null
+}
+
 interface GameDetailsPageProps {
   initialGame: Game & { participants: Participant[] }
+  currentUser?: CurrentUser | null
 }
 
 function SortableParticipantRow({
@@ -118,6 +128,7 @@ function SortableParticipantRow({
   updateParticipantBadges: (id: string, badges: ParticipantBadge[]) => void
   removeParticipant: (id: string) => void
 }) {
+  const hasProfile = !!participant.user_id
   const {
     attributes,
     listeners,
@@ -168,9 +179,18 @@ function SortableParticipantRow({
           {index + 1}
         </div>
         <div className="min-w-0 flex-1">
-          <span className={`font-medium text-sm truncate block ${participant.paid ? "text-primary" : "text-foreground"}`}>
-            {participant.name}
-          </span>
+          {!isAdmin && hasProfile ? (
+            <Link
+              href={`/jogador/${participant.user_id}`}
+              className={`font-medium text-sm truncate block underline decoration-dotted underline-offset-2 hover:decoration-solid ${participant.paid ? "text-primary" : "text-foreground"}`}
+            >
+              {participant.name}
+            </Link>
+          ) : (
+            <span className={`font-medium text-sm truncate block ${participant.paid ? "text-primary" : "text-foreground"}`}>
+              {participant.name}
+            </span>
+          )}
           {(participant.badges?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {participant.badges?.map((badge) => {
@@ -197,6 +217,17 @@ function SortableParticipantRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
+            {hasProfile && (
+              <>
+                <DropdownMenuItem asChild>
+                  <Link href={`/jogador/${participant.user_id}`} className="flex items-center">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Ver Perfil
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem
               onClick={() => updateParticipantPaid(participant.id, !participant.paid)}
             >
@@ -248,7 +279,7 @@ function SortableParticipantRow({
   )
 }
 
-export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
+export function GameDetailsPage({ initialGame, currentUser }: GameDetailsPageProps) {
   const router = useRouter()
   const [game, setGame] = useState(initialGame)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -357,14 +388,20 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
     }
   }
 
-  const addParticipant = async () => {
-    if (!newParticipantName.trim()) return
+  // Check if current user already joined this game
+  const userAlreadyJoined = currentUser
+    ? game.participants.some((p) => p.user_id === currentUser.id)
+    : false
+
+  const addParticipant = async (nameOverride?: string) => {
+    const name = nameOverride || newParticipantName.trim()
+    if (!name) return
     setIsAdding(true)
     try {
       const response = await fetch(`/api/games/${game.id}/participants`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newParticipantName.trim() }),
+        body: JSON.stringify({ name }),
       })
       if (response.ok) {
         const newParticipant = await response.json()
@@ -1106,23 +1143,69 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
               </div>
             ) : (
               <>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Seu nome"
-                    value={newParticipantName}
-                    onChange={(e) => setNewParticipantName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && addParticipant()}
-                    className="h-10"
-                  />
-                  <Button onClick={addParticipant} disabled={isAdding} className="shrink-0 h-10">
-                    <Plus className="h-4 w-4 mr-1" />
-                    <span className="hidden sm:inline">Participar</span>
-                    <span className="sm:hidden">OK</span>
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  O organizador precisara aprovar sua participacao.
-                </p>
+                {currentUser && !userAlreadyJoined ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                      <Avatar className="h-10 w-10 border border-primary/30">
+                        <AvatarImage src={currentUser.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">
+                          {currentUser.display_name?.slice(0, 2).toUpperCase() || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {currentUser.display_name || "Jogador"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Entrar com seu perfil vinculado
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => addParticipant(currentUser.display_name || "Jogador")}
+                        disabled={isAdding}
+                        className="shrink-0 h-10"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Participar
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      O organizador precisara aprovar sua participacao.
+                    </p>
+                  </div>
+                ) : currentUser && userAlreadyJoined ? (
+                  <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                    <User className="h-5 w-5 text-primary flex-shrink-0" />
+                    <p className="text-sm text-foreground">
+                      Voce ja esta inscrito nesta partida.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Seu nome"
+                        value={newParticipantName}
+                        onChange={(e) => setNewParticipantName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && addParticipant()}
+                        className="h-10"
+                      />
+                      <Button onClick={() => addParticipant()} disabled={isAdding} className="shrink-0 h-10">
+                        <Plus className="h-4 w-4 mr-1" />
+                        <span className="hidden sm:inline">Participar</span>
+                        <span className="sm:hidden">OK</span>
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        O organizador precisara aprovar sua participacao.
+                      </p>
+                      <Link href="/auth/login" className="text-xs text-primary hover:underline whitespace-nowrap ml-2">
+                        Fazer login
+                      </Link>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </CardContent>
