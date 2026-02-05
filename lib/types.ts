@@ -1,5 +1,7 @@
 export type SportCategory = 'futebol' | 'futsal' | 'volei' | 'beachtenis' | 'futvolei'
 
+export type SortMode = 'payment' | 'teams' | 'arrival'
+
 export type ParticipantBadge = 'MVP' | 'Bola Murcha' | 'Artilheiro' | 'Craque' | 'Paredão' | 'Garçom' | 'Cestinha' | 'Ace' | 'Pipoqueiro'
 
 export const SPORT_CATEGORIES: { value: SportCategory; label: string; icon: string }[] = [
@@ -35,6 +37,8 @@ export interface Game {
   category: SportCategory
   list_closed: boolean
   location: string | null
+  sort_mode: SortMode
+  players_per_team: number
   created_at: string
   updated_at: string
 }
@@ -45,7 +49,9 @@ export interface Participant {
   name: string
   status: 'pending' | 'approved' | 'rejected'
   paid: boolean
+  paid_at: string | null
   badges: ParticipantBadge[]
+  sort_order: number
   created_at: string
   updated_at: string
 }

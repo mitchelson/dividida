@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import React from "react"
+
+import { useState, useMemo, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -63,13 +65,185 @@ import {
   MoreVertical,
   CheckCircle2,
   Circle,
+  GripVertical,
+  CreditCard,
+  UsersRound,
+  ArrowDownUp,
 } from "lucide-react"
 import { QRCodeSVG } from "qrcode.react"
-import type { Game, Participant, SportCategory, ParticipantBadge } from "@/lib/types"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import type { Game, Participant, SportCategory, ParticipantBadge, SortMode } from "@/lib/types"
 import { SPORT_CATEGORIES, PARTICIPANT_BADGES } from "@/lib/types"
 
 interface GameDetailsPageProps {
   initialGame: Game & { participants: Participant[] }
+}
+
+function SortableParticipantRow({
+  participant,
+  index,
+  isAdmin,
+  isDragMode,
+  sortMode,
+  teamIndex,
+  updateParticipantPaid,
+  updateParticipantBadges,
+  removeParticipant,
+}: {
+  participant: Participant
+  index: number
+  isAdmin: boolean
+  isDragMode: boolean
+  sortMode: SortMode
+  teamIndex?: number
+  updateParticipantPaid: (id: string, paid: boolean) => void
+  updateParticipantBadges: (id: string, badges: ParticipantBadge[]) => void
+  removeParticipant: (id: string) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: participant.id, disabled: !isDragMode })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center justify-between rounded-lg border p-3 transition-all ${
+        participant.paid
+          ? "border-primary/30 bg-primary/5"
+          : "border-border bg-card"
+      } ${isDragging ? "shadow-lg" : ""}`}
+    >
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        {isDragMode && (
+          <button
+            className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0 text-muted-foreground hover:text-foreground"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        )}
+        {!isDragMode && isAdmin && (
+          <Checkbox
+            checked={participant.paid}
+            onCheckedChange={(checked) => updateParticipantPaid(participant.id, !!checked)}
+            className="flex-shrink-0"
+          />
+        )}
+        {!isDragMode && !isAdmin && participant.paid && (
+          <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
+        )}
+        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary flex-shrink-0">
+          {index + 1}
+        </div>
+        <div className="min-w-0 flex-1">
+          <span className={`font-medium text-sm truncate block ${participant.paid ? "text-primary" : "text-foreground"}`}>
+            {participant.name}
+          </span>
+          {(participant.badges?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {participant.badges?.map((badge) => {
+                const badgeInfo = PARTICIPANT_BADGES.find((b) => b.value === badge)
+                return badgeInfo ? (
+                  <Badge
+                    key={badge}
+                    className={`text-xs px-1.5 py-0 ${badgeInfo.color} text-white`}
+                  >
+                    {badgeInfo.label}
+                  </Badge>
+                ) : null
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {isAdmin && !isDragMode && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem
+              onClick={() => updateParticipantPaid(participant.id, !participant.paid)}
+            >
+              {participant.paid ? (
+                <>
+                  <Circle className="h-4 w-4 mr-2" />
+                  Marcar nao pago
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Marcar como pago
+                </>
+              )}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+              <Award className="h-3 w-3 inline mr-1" />
+              Badges
+            </div>
+            {PARTICIPANT_BADGES.map((badge) => (
+              <DropdownMenuCheckboxItem
+                key={badge.value}
+                checked={participant.badges?.includes(badge.value)}
+                onCheckedChange={(checked) => {
+                  const currentBadges = participant.badges || []
+                  const newBadges = checked
+                    ? [...currentBadges, badge.value]
+                    : currentBadges.filter((b) => b !== badge.value)
+                  updateParticipantBadges(participant.id, newBadges)
+                }}
+              >
+                <span className={`w-2 h-2 rounded-full ${badge.color} mr-2`} />
+                {badge.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => removeParticipant(participant.id)}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Remover
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
+  )
 }
 
 export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
@@ -92,11 +266,61 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
     pix_key: game.pix_key || "",
     pix_receiver_name: game.pix_receiver_name || "",
     pix_city: game.pix_city || "",
-    category: game.category || "futebol",
+    category: (game.category || "futebol") as SportCategory,
+    sort_mode: (game.sort_mode || "payment") as SortMode,
+    players_per_team: String(game.players_per_team || 5),
   })
 
   const approvedParticipants = game.participants.filter((p) => p.status === "approved")
   const pendingParticipants = game.participants.filter((p) => p.status === "pending")
+
+  const currentSortMode = (game.sort_mode || "payment") as SortMode
+
+  const sortedApproved = useMemo(() => {
+    const list = [...approvedParticipants]
+    switch (currentSortMode) {
+      case "payment":
+        // Paid first (sorted by paid_at), then unpaid (sorted by created_at)
+        return list.sort((a, b) => {
+          if (a.paid && !b.paid) return -1
+          if (!a.paid && b.paid) return 1
+          if (a.paid && b.paid) {
+            const aTime = a.paid_at ? new Date(a.paid_at).getTime() : 0
+            const bTime = b.paid_at ? new Date(b.paid_at).getTime() : 0
+            return aTime - bTime
+          }
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        })
+      case "teams":
+        // Sort by sort_order for team assignment, fallback to created_at
+        return list.sort((a, b) => {
+          if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        })
+      case "arrival":
+        // Sort by sort_order for manual drag ordering
+        return list.sort((a, b) => {
+          if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        })
+      default:
+        return list
+    }
+  }, [approvedParticipants, currentSortMode])
+
+  const teamGroups = useMemo(() => {
+    if (currentSortMode !== "teams") return []
+    const perTeam = game.players_per_team || 5
+    const groups: { label: string; participants: Participant[] }[] = []
+    for (let i = 0; i < sortedApproved.length; i += perTeam) {
+      const teamNumber = Math.floor(i / perTeam) + 1
+      groups.push({
+        label: `Time ${teamNumber}`,
+        participants: sortedApproved.slice(i, i + perTeam),
+      })
+    }
+    return groups
+  }, [sortedApproved, currentSortMode, game.players_per_team])
 
   const valuePerPerson = useMemo(() => {
     if (approvedParticipants.length === 0 || Number(game.court_value) <= 0) return 0
@@ -104,6 +328,11 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
   }, [approvedParticipants.length, game.court_value])
 
   const categoryInfo = SPORT_CATEGORIES.find((c) => c.value === (game.category || "futebol")) || SPORT_CATEGORIES[0]
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
 
   const verifyPassword = async () => {
     setPasswordError("")
@@ -113,9 +342,7 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: adminPassword }),
       })
-
       const data = await response.json()
-
       if (data.valid) {
         setIsAdmin(true)
         setPasswordDialogOpen(false)
@@ -129,7 +356,6 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
 
   const addParticipant = async () => {
     if (!newParticipantName.trim()) return
-
     setIsAdding(true)
     try {
       const response = await fetch(`/api/games/${game.id}/participants`, {
@@ -137,13 +363,9 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newParticipantName.trim() }),
       })
-
       if (response.ok) {
         const newParticipant = await response.json()
-        setGame({
-          ...game,
-          participants: [...game.participants, newParticipant],
-        })
+        setGame({ ...game, participants: [...game.participants, newParticipant] })
         setNewParticipantName("")
       }
     } catch (error) {
@@ -160,7 +382,6 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status, password: adminPassword }),
       })
-
       if (response.ok) {
         setGame({
           ...game,
@@ -174,66 +395,64 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
     }
   }
 
-  const updateParticipantPaid = async (participantId: string, paid: boolean) => {
+  const updateParticipantPaid = useCallback(async (participantId: string, paid: boolean) => {
     try {
       const response = await fetch(`/api/games/${game.id}/participants/${participantId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paid, password: adminPassword }),
       })
-
       if (response.ok) {
-        setGame({
-          ...game,
-          participants: game.participants.map((p) =>
-            p.id === participantId ? { ...p, paid } : p
+        const updatedParticipant = await response.json()
+        setGame((prev) => ({
+          ...prev,
+          participants: prev.participants.map((p) =>
+            p.id === participantId ? { ...p, paid: updatedParticipant.paid, paid_at: updatedParticipant.paid_at } : p
           ),
-        })
+        }))
       }
     } catch (error) {
       console.error("Erro ao atualizar pagamento:", error)
     }
-  }
+  }, [game.id, adminPassword])
 
-  const updateParticipantBadges = async (participantId: string, badges: ParticipantBadge[]) => {
+  const updateParticipantBadges = useCallback(async (participantId: string, badges: ParticipantBadge[]) => {
     try {
       const response = await fetch(`/api/games/${game.id}/participants/${participantId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ badges, password: adminPassword }),
       })
-
       if (response.ok) {
-        setGame({
-          ...game,
-          participants: game.participants.map((p) =>
+        setGame((prev) => ({
+          ...prev,
+          participants: prev.participants.map((p) =>
             p.id === participantId ? { ...p, badges } : p
           ),
-        })
+        }))
       }
     } catch (error) {
       console.error("Erro ao atualizar badges:", error)
     }
-  }
+  }, [game.id, adminPassword])
 
-  const removeParticipant = async (participantId: string) => {
+  const removeParticipant = useCallback(async (participantId: string) => {
     try {
       const response = await fetch(`/api/games/${game.id}/participants/${participantId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: adminPassword }),
       })
-
       if (response.ok) {
-        setGame({
-          ...game,
-          participants: game.participants.filter((p) => p.id !== participantId),
-        })
+        setGame((prev) => ({
+          ...prev,
+          participants: prev.participants.filter((p) => p.id !== participantId),
+        }))
       }
     } catch (error) {
       console.error("Erro ao remover participante:", error)
     }
-  }
+  }, [game.id, adminPassword])
 
   const updateGame = async () => {
     try {
@@ -243,13 +462,13 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
         body: JSON.stringify({
           ...editData,
           court_value: parseFloat(editData.court_value) || 0,
+          players_per_team: parseInt(editData.players_per_team) || 5,
           password: adminPassword,
         }),
       })
-
       if (response.ok) {
         const updatedGame = await response.json()
-        setGame({ ...game, ...updatedGame })
+        setGame((prev) => ({ ...prev, ...updatedGame }))
         setEditDialogOpen(false)
       }
     } catch (error) {
@@ -264,7 +483,6 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: adminPassword }),
       })
-
       if (response.ok) {
         router.push("/")
       }
@@ -278,40 +496,59 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
       const response = await fetch(`/api/games/${game.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          list_closed: !game.list_closed,
-          password: adminPassword,
-        }),
+        body: JSON.stringify({ list_closed: !game.list_closed, password: adminPassword }),
       })
-
       if (response.ok) {
-        setGame({ ...game, list_closed: !game.list_closed })
+        setGame((prev) => ({ ...prev, list_closed: !prev.list_closed }))
       }
     } catch (error) {
       console.error("Erro ao alterar status da lista:", error)
     }
   }
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = sortedApproved.findIndex((p) => p.id === active.id)
+    const newIndex = sortedApproved.findIndex((p) => p.id === over.id)
+    const reordered = arrayMove(sortedApproved, oldIndex, newIndex)
+    const orderedIds = reordered.map((p) => p.id)
+
+    // Optimistically update the sort_order locally
+    setGame((prev) => ({
+      ...prev,
+      participants: prev.participants.map((p) => {
+        const newOrder = orderedIds.indexOf(p.id)
+        if (newOrder !== -1) return { ...p, sort_order: newOrder }
+        return p
+      }),
+    }))
+
+    // Persist to server
+    try {
+      await fetch(`/api/games/${game.id}/participants/reorder`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: adminPassword, orderedIds }),
+      })
+    } catch (error) {
+      console.error("Erro ao reordenar:", error)
+    }
+  }
+
   const generatePixPayload = (value: number): string => {
     if (!game.pix_key || !game.pix_receiver_name || !game.pix_city) return ""
-
     const removeAccents = (str: string): string => {
-      return str
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-zA-Z0-9 ]/g, "")
-        .toUpperCase()
+      return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase()
     }
-
     const formatField = (id: string, fieldValue: string): string => {
       const length = fieldValue.length.toString().padStart(2, "0")
       return `${id}${length}${fieldValue}`
     }
-
     const calculateCRC16 = (str: string): string => {
       let crc = 0xffff
       const polynomial = 0x1021
-
       for (let i = 0; i < str.length; i++) {
         crc ^= str.charCodeAt(i) << 8
         for (let j = 0; j < 8; j++) {
@@ -322,10 +559,8 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
           }
         }
       }
-
       return crc.toString(16).toUpperCase().padStart(4, "0")
     }
-
     const payloadFormatIndicator = formatField("00", "01")
     const pointOfInitiation = formatField("01", "12")
     const gui = formatField("00", "br.gov.bcb.pix")
@@ -339,23 +574,12 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
     const merchantCity = formatField("60", removeAccents(game.pix_city).substring(0, 15))
     const txid = formatField("05", "***")
     const additionalDataField = formatField("62", txid)
-
     let payload =
-      payloadFormatIndicator +
-      pointOfInitiation +
-      merchantAccountInfo +
-      merchantCategoryCode +
-      transactionCurrency +
-      transactionAmount +
-      countryCode +
-      merchantName +
-      merchantCity +
-      additionalDataField
-
+      payloadFormatIndicator + pointOfInitiation + merchantAccountInfo + merchantCategoryCode +
+      transactionCurrency + transactionAmount + countryCode + merchantName + merchantCity + additionalDataField
     payload += "6304"
     const crc = calculateCRC16(payload)
     payload += crc
-
     return payload
   }
 
@@ -374,22 +598,117 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + "T00:00:00")
-    return date.toLocaleDateString("pt-BR", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-    })
+    return date.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })
   }
 
   const paidCount = approvedParticipants.filter((p) => p.paid).length
   const unpaidCount = approvedParticipants.length - paidCount
 
+  const sortModeLabels: Record<SortMode, { label: string; icon: React.ReactNode; description: string }> = {
+    payment: { label: "Pagamento", icon: <CreditCard className="h-4 w-4" />, description: "Pagantes primeiro" },
+    teams: { label: "Times", icon: <UsersRound className="h-4 w-4" />, description: "Dividido por times" },
+    arrival: { label: "Chegada", icon: <ArrowDownUp className="h-4 w-4" />, description: "Arraste para ordenar" },
+  }
+
+  const isDragMode = isAdmin && currentSortMode === "arrival"
+
+  const renderParticipantsList = () => {
+    if (sortedApproved.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-6 text-center">
+          <Users className="mb-2 h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">Nenhum confirmado ainda</p>
+        </div>
+      )
+    }
+
+    if (currentSortMode === "teams" && teamGroups.length > 0) {
+      return (
+        <div className="space-y-4">
+          {teamGroups.map((group, groupIndex) => (
+            <div key={group.label} className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className={`text-xs ${
+                    groupIndex % 2 === 0
+                      ? "border-primary/50 text-primary bg-primary/5"
+                      : "border-accent/50 text-accent-foreground bg-accent/10"
+                  }`}
+                >
+                  <UsersRound className="h-3 w-3 mr-1" />
+                  {group.label}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {group.participants.length}/{game.players_per_team || 5}
+                </span>
+              </div>
+              <div className="space-y-2 pl-2 border-l-2 border-border">
+                {group.participants.map((participant, index) => (
+                  <SortableParticipantRow
+                    key={participant.id}
+                    participant={participant}
+                    index={groupIndex * (game.players_per_team || 5) + index}
+                    isAdmin={isAdmin}
+                    isDragMode={false}
+                    sortMode={currentSortMode}
+                    teamIndex={groupIndex}
+                    updateParticipantPaid={updateParticipantPaid}
+                    updateParticipantBadges={updateParticipantBadges}
+                    removeParticipant={removeParticipant}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    // Payment or Arrival mode
+    const participantList = (
+      <div className="space-y-2">
+        {sortedApproved.map((participant, index) => (
+          <SortableParticipantRow
+            key={participant.id}
+            participant={participant}
+            index={index}
+            isAdmin={isAdmin}
+            isDragMode={isDragMode}
+            sortMode={currentSortMode}
+            updateParticipantPaid={updateParticipantPaid}
+            updateParticipantBadges={updateParticipantBadges}
+            removeParticipant={removeParticipant}
+          />
+        ))}
+      </div>
+    )
+
+    if (isDragMode) {
+      return (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={sortedApproved.map((p) => p.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {participantList}
+          </SortableContext>
+        </DndContext>
+      )
+    }
+
+    return participantList
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header Mobile-First */}
+      {/* Header */}
       <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="px-4 py-3">
-          {/* Linha 1: Voltar + Nome + Icone */}
           <div className="flex items-center gap-2">
             <Link href="/">
               <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
@@ -399,8 +718,6 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
             <span className="text-xl flex-shrink-0">{categoryInfo.icon}</span>
             <h1 className="text-lg font-bold text-foreground truncate">{game.name}</h1>
           </div>
-          
-          {/* Linha 2: Data + Badge Admin + Botão Editar */}
           <div className="flex items-center justify-between mt-2 pl-10">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -412,7 +729,6 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
                 {game.game_time.slice(0, 5)}
               </span>
             </div>
-            
             <div className="flex items-center gap-2">
               {isAdmin ? (
                 <>
@@ -470,7 +786,7 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label>Horário</Label>
+                            <Label>Horario</Label>
                             <Input
                               type="time"
                               value={editData.game_time}
@@ -491,12 +807,67 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
 
                         <Separator />
 
+                        {/* Sort Mode Settings */}
+                        <div className="space-y-4">
+                          <h3 className="font-semibold text-sm">Organizacao da Lista</h3>
+                          <div className="space-y-2">
+                            <Label>Modo de Ordenacao</Label>
+                            <Select
+                              value={editData.sort_mode}
+                              onValueChange={(value: SortMode) => setEditData({ ...editData, sort_mode: value })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="payment">
+                                  <span className="flex items-center gap-2">
+                                    <CreditCard className="h-4 w-4" />
+                                    <span>Ordem de Pagamento</span>
+                                  </span>
+                                </SelectItem>
+                                <SelectItem value="teams">
+                                  <span className="flex items-center gap-2">
+                                    <UsersRound className="h-4 w-4" />
+                                    <span>Dividir por Times</span>
+                                  </span>
+                                </SelectItem>
+                                <SelectItem value="arrival">
+                                  <span className="flex items-center gap-2">
+                                    <ArrowDownUp className="h-4 w-4" />
+                                    <span>Ordem de Chegada</span>
+                                  </span>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              {editData.sort_mode === "payment" && "Os jogadores pagos aparecem primeiro, na ordem que pagaram."}
+                              {editData.sort_mode === "teams" && "Os jogadores serao divididos em times automaticamente."}
+                              {editData.sort_mode === "arrival" && "Arraste e solte os jogadores para definir a ordem de chegada."}
+                            </p>
+                          </div>
+                          {editData.sort_mode === "teams" && (
+                            <div className="space-y-2">
+                              <Label>Jogadores por Time</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                max="20"
+                                value={editData.players_per_team}
+                                onChange={(e) => setEditData({ ...editData, players_per_team: e.target.value })}
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        <Separator />
+
                         <div className="space-y-4">
                           <h3 className="font-semibold text-sm">Dados do PIX</h3>
                           <div className="space-y-2">
                             <Label>Chave PIX</Label>
                             <Input
-                              placeholder="CPF, E-mail, Celular ou Aleatória"
+                              placeholder="CPF, E-mail, Celular ou Aleatoria"
                               value={editData.pix_key}
                               onChange={(e) => setEditData({ ...editData, pix_key: e.target.value })}
                             />
@@ -506,15 +877,13 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
                             <Input
                               placeholder="Nome completo"
                               value={editData.pix_receiver_name}
-                              onChange={(e) =>
-                                setEditData({ ...editData, pix_receiver_name: e.target.value })
-                              }
+                              onChange={(e) => setEditData({ ...editData, pix_receiver_name: e.target.value })}
                             />
                           </div>
                           <div className="space-y-2">
                             <Label>Cidade</Label>
                             <Input
-                              placeholder="Ex: São Paulo"
+                              placeholder="Ex: Sao Paulo"
                               value={editData.pix_city}
                               onChange={(e) => setEditData({ ...editData, pix_city: e.target.value })}
                             />
@@ -585,7 +954,7 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
       </header>
 
       <main className="flex-1 px-4 py-4 space-y-4">
-        {/* Resumo Compacto */}
+        {/* Summary */}
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="p-4">
             <div className="grid grid-cols-3 gap-2 text-center">
@@ -606,7 +975,6 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
                 </p>
               </div>
             </div>
-            
             {isAdmin && approvedParticipants.length > 0 && (
               <div className="mt-3 pt-3 border-t border-primary/20 flex items-center justify-center gap-4 text-xs">
                 <span className="flex items-center gap-1 text-primary">
@@ -624,7 +992,7 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
           </CardContent>
         </Card>
 
-        {/* Adicionar Participante */}
+        {/* Add Participant */}
         <Card className={game.list_closed ? "border-destructive/30 bg-destructive/5" : ""}>
           <CardHeader className="p-4 pb-2">
             <CardTitle className="text-sm flex items-center justify-between">
@@ -662,9 +1030,7 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
             {game.list_closed ? (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-destructive/30 p-6 text-center">
                 <Lock className="mb-2 h-8 w-8 text-destructive/50" />
-                <p className="text-sm text-muted-foreground">
-                  As inscricoes estao encerradas
-                </p>
+                <p className="text-sm text-muted-foreground">As inscricoes estao encerradas</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   O valor por pessoa foi fixado em R$ {valuePerPerson.toFixed(2)}
                 </p>
@@ -693,14 +1059,14 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
           </CardContent>
         </Card>
 
-        {/* Participantes Pendentes (Admin) */}
+        {/* Pending Participants (Admin) */}
         {isAdmin && pendingParticipants.length > 0 && (
           <Card className="border-accent/50">
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-sm flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <Hourglass className="h-4 w-4 text-accent" />
-                  Aguardando Aprovação
+                  Aguardando Aprovacao
                 </span>
                 <Badge variant="outline" className="text-xs">{pendingParticipants.length}</Badge>
               </CardTitle>
@@ -738,7 +1104,7 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
           </Card>
         )}
 
-        {/* Lista de Participantes Confirmados */}
+        {/* Confirmed Participants List */}
         <Card>
           <CardHeader className="p-4 pb-2">
             <CardTitle className="text-sm flex items-center justify-between">
@@ -746,128 +1112,30 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
                 <UserCheck className="h-4 w-4 text-primary" />
                 Confirmados
               </span>
-              <Badge variant="secondary" className="text-xs">{approvedParticipants.length}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs flex items-center gap-1">
+                  {sortModeLabels[currentSortMode].icon}
+                  {sortModeLabels[currentSortMode].label}
+                </Badge>
+                <Badge variant="secondary" className="text-xs">{approvedParticipants.length}</Badge>
+              </div>
             </CardTitle>
+            {isDragMode && (
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <GripVertical className="h-3 w-3" />
+                Arraste os jogadores para definir a ordem de chegada
+              </p>
+            )}
           </CardHeader>
           <CardContent className="p-4 pt-2">
-            {approvedParticipants.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-6 text-center">
-                <Users className="mb-2 h-8 w-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">Nenhum confirmado ainda</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {approvedParticipants.map((participant, index) => (
-                  <div
-                    key={participant.id}
-                    className={`flex items-center justify-between rounded-lg border p-3 transition-all ${
-                      participant.paid 
-                        ? "border-primary/30 bg-primary/5" 
-                        : "border-border bg-card"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      {isAdmin && (
-                        <Checkbox
-                          checked={participant.paid}
-                          onCheckedChange={(checked) => updateParticipantPaid(participant.id, !!checked)}
-                          className="flex-shrink-0"
-                        />
-                      )}
-                      {!isAdmin && participant.paid && (
-                        <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                      )}
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary flex-shrink-0">
-                        {index + 1}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <span className={`font-medium text-sm truncate block ${participant.paid ? "text-primary" : "text-foreground"}`}>
-                          {participant.name}
-                        </span>
-                        {(participant.badges?.length ?? 0) > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {participant.badges?.map((badge) => {
-                              const badgeInfo = PARTICIPANT_BADGES.find((b) => b.value === badge)
-                              return badgeInfo ? (
-                                <Badge
-                                  key={badge}
-                                  className={`text-xs px-1.5 py-0 ${badgeInfo.color} text-white`}
-                                >
-                                  {badgeInfo.label}
-                                </Badge>
-                              ) : null
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {isAdmin && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem
-                            onClick={() => updateParticipantPaid(participant.id, !participant.paid)}
-                          >
-                            {participant.paid ? (
-                              <>
-                                <Circle className="h-4 w-4 mr-2" />
-                                Marcar não pago
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                Marcar como pago
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                            <Award className="h-3 w-3 inline mr-1" />
-                            Badges
-                          </div>
-                          {PARTICIPANT_BADGES.map((badge) => (
-                            <DropdownMenuCheckboxItem
-                              key={badge.value}
-                              checked={participant.badges?.includes(badge.value)}
-                              onCheckedChange={(checked) => {
-                                const currentBadges = participant.badges || []
-                                const newBadges = checked
-                                  ? [...currentBadges, badge.value]
-                                  : currentBadges.filter((b) => b !== badge.value)
-                                updateParticipantBadges(participant.id, newBadges)
-                              }}
-                            >
-                              <span className={`w-2 h-2 rounded-full ${badge.color} mr-2`} />
-                              {badge.label}
-                            </DropdownMenuCheckboxItem>
-                          ))}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => removeParticipant(participant.id)}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Remover
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            {renderParticipantsList()}
 
-            {/* Participantes Pendentes (Visualização pública) */}
+            {/* Public pending view */}
             {!isAdmin && pendingParticipants.length > 0 && (
               <div className="mt-4 pt-4 border-t border-border">
                 <p className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
                   <Hourglass className="h-3 w-3" />
-                  Aguardando aprovação ({pendingParticipants.length})
+                  Aguardando aprovacao ({pendingParticipants.length})
                 </p>
                 <div className="space-y-1">
                   {pendingParticipants.map((participant) => (
@@ -885,7 +1153,7 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
           </CardContent>
         </Card>
 
-        {/* QR Code PIX */}
+        {/* PIX QR Code */}
         {isPixConfigured && approvedParticipants.length > 0 && valuePerPerson > 0 && (
           <Card className="border-primary/20">
             <CardHeader className="p-4 pb-2">
@@ -904,9 +1172,8 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
                   <p className="text-2xl font-bold text-primary">R$ {valuePerPerson.toFixed(2)}</p>
                 </div>
               </div>
-
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Código PIX Copia e Cola</Label>
+                <Label className="text-xs text-muted-foreground">Codigo PIX Copia e Cola</Label>
                 <div className="flex gap-2">
                   <Input readOnly value={pixPayload} className="bg-muted font-mono text-xs h-10" />
                   <Button
@@ -924,7 +1191,6 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
                 </div>
                 {copiedId === "pix" && <p className="text-xs text-primary">Copiado!</p>}
               </div>
-
               <div className="rounded-lg bg-muted p-3 text-xs">
                 <p className="font-medium text-foreground mb-1">Recebedor:</p>
                 <p className="text-muted-foreground">{game.pix_receiver_name}</p>
@@ -938,9 +1204,9 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-6">
               <QrCode className="mb-2 h-8 w-8 text-muted-foreground/50" />
-              <p className="text-sm font-medium text-foreground">PIX não configurado</p>
+              <p className="text-sm font-medium text-foreground">PIX nao configurado</p>
               <p className="text-xs text-center text-muted-foreground mt-1">
-                {isAdmin ? "Configure os dados do PIX para gerar o QR Code" : "O organizador ainda não configurou os dados do PIX"}
+                {isAdmin ? "Configure os dados do PIX para gerar o QR Code" : "O organizador ainda nao configurou os dados do PIX"}
               </p>
               {isAdmin && (
                 <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)} className="mt-3">
@@ -959,7 +1225,7 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir partida?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Todos os participantes serão removidos.
+              Esta acao nao pode ser desfeita. Todos os participantes serao removidos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row gap-2">

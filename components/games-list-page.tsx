@@ -162,7 +162,7 @@ export function GamesListPage({ initialGames }: GamesListPageProps) {
             </div>
           </CardHeader>
           <CardContent className="p-4 pt-2 space-y-3">
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
               <Badge variant="outline" className="text-xs">
                 {categoryInfo.label}
               </Badge>
@@ -170,6 +170,17 @@ export function GamesListPage({ initialGames }: GamesListPageProps) {
                 <Clock className="h-3 w-3" />
                 {formatTime(game.game_time)}
               </span>
+              {game.list_closed ? (
+                <Badge variant="destructive" className="text-xs px-1.5 py-0">
+                  <Lock className="h-2.5 w-2.5 mr-0.5" />
+                  Fechada
+                </Badge>
+              ) : (
+                <Badge className="text-xs px-1.5 py-0 bg-emerald-600 text-white hover:bg-emerald-600">
+                  <LockOpen className="h-2.5 w-2.5 mr-0.5" />
+                  Aberta
+                </Badge>
+              )}
             </div>
 
             <div className="flex items-center justify-between">

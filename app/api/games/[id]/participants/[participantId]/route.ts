@@ -39,8 +39,12 @@ export async function PUT(
     // Montar objeto de atualização apenas com campos fornecidos
     const updateData: Record<string, unknown> = {}
     if (status !== undefined) updateData.status = status
-    if (paid !== undefined) updateData.paid = paid
+    if (paid !== undefined) {
+      updateData.paid = paid
+      updateData.paid_at = paid ? new Date().toISOString() : null
+    }
     if (badges !== undefined) updateData.badges = badges
+    if (body.sort_order !== undefined) updateData.sort_order = body.sort_order
 
     const { data, error } = await supabase
       .from("participants")
