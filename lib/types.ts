@@ -52,6 +52,7 @@ export interface Participant {
   paid_at: string | null
   badges: ParticipantBadge[]
   sort_order: number
+  user_id: string | null
   created_at: string
   updated_at: string
 }
@@ -59,3 +60,28 @@ export interface Participant {
 export interface GameWithParticipants extends Game {
   participants: Participant[]
 }
+
+export interface PlayerProfile {
+  id: string
+  display_name: string | null
+  avatar_url: string | null
+  stat_pace: number
+  stat_shooting: number
+  stat_passing: number
+  stat_dribbling: number
+  stat_defending: number
+  stat_physical: number
+  overall: number
+  position: string
+  games_played: number
+  goals: number
+  assists: number
+  created_at: string
+  updated_at: string
+}
+
+export const POSITIONS = [
+  'GOL', 'ZAG', 'LE', 'LD', 'VOL', 'MC', 'ME', 'MD', 'MEI', 'SA', 'PE', 'PD', 'ATA'
+] as const
+
+export type PlayerPosition = typeof POSITIONS[number]

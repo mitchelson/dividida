@@ -49,13 +49,22 @@ export async function POST(
       )
     }
 
+    // Check if the user is authenticated to link profile
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const insertData: Record<string, unknown> = {
+      game_id: id,
+      name,
+      status: "pending",
+    }
+
+    if (user) {
+      insertData.user_id = user.id
+    }
+
     const { data, error } = await supabase
       .from("participants")
-      .insert({
-        game_id: id,
-        name,
-        status: "pending",
-      })
+      .insert(insertData)
       .select()
       .single()
 
