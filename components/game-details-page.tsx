@@ -69,6 +69,8 @@ import {
   CreditCard,
   UsersRound,
   ArrowDownUp,
+  Share2,
+  MapPin,
 } from "lucide-react"
 import { QRCodeSVG } from "qrcode.react"
 import {
@@ -266,6 +268,7 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
     pix_key: game.pix_key || "",
     pix_receiver_name: game.pix_receiver_name || "",
     pix_city: game.pix_city || "",
+    location: game.location || "",
     category: (game.category || "futebol") as SportCategory,
     sort_mode: (game.sort_mode || "payment") as SortMode,
     players_per_team: String(game.players_per_team || 5),
@@ -601,6 +604,48 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
     return date.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })
   }
 
+  const shareOnWhatsApp = () => {
+    const gameUrl = typeof window !== "undefined"
+      ? `${window.location.origin}/jogo/${game.id}`
+      : ""
+
+    const dateStr = formatDate(game.game_date)
+    const timeStr = game.game_time.slice(0, 5)
+
+    let message = `*${categoryInfo.icon} ${game.name}*\n`
+    message += `${dateStr} as ${timeStr}\n`
+    if (game.location) {
+      message += `📍 ${game.location}\n`
+    }
+    message += `Valor: R$ ${Number(game.court_value).toFixed(0)}`
+    if (approvedParticipants.length > 0) {
+      message += ` (R$ ${valuePerPerson.toFixed(2)}/pessoa)`
+    }
+    message += "\n\n"
+
+    if (approvedParticipants.length > 0) {
+      message += `*Confirmados (${approvedParticipants.length}):*\n`
+      sortedApproved.forEach((p, i) => {
+        const paidMark = p.paid ? " ✅" : ""
+        message += `${i + 1}. ${p.name}${paidMark}\n`
+      })
+      message += "\n"
+    }
+
+    if (pendingParticipants.length > 0) {
+      message += `_Aguardando (${pendingParticipants.length}):_\n`
+      pendingParticipants.forEach((p) => {
+        message += `- ${p.name}\n`
+      })
+      message += "\n"
+    }
+
+    message += `Coloque seu nome na lista:\n${gameUrl}`
+
+    const encoded = encodeURIComponent(message)
+    window.open(`https://wa.me/?text=${encoded}`, "_blank")
+  }
+
   const paidCount = approvedParticipants.filter((p) => p.paid).length
   const unpaidCount = approvedParticipants.length - paidCount
 
@@ -804,6 +849,14 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
                             onChange={(e) => setEditData({ ...editData, court_value: e.target.value })}
                           />
                         </div>
+                        <div className="space-y-2">
+                          <Label>Local</Label>
+                          <Input
+                            placeholder="Ex: Arena Soccer, Campo do Parque..."
+                            value={editData.location}
+                            onChange={(e) => setEditData({ ...editData, location: e.target.value })}
+                          />
+                        </div>
 
                         <Separator />
 
@@ -975,8 +1028,14 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
                 </p>
               </div>
             </div>
+            {game.location && (
+              <div className="mt-3 pt-3 border-t border-primary/20 flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                <MapPin className="h-3 w-3" />
+                {game.location}
+              </div>
+            )}
             {isAdmin && approvedParticipants.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-primary/20 flex items-center justify-center gap-4 text-xs">
+              <div className={`${game.location ? "mt-2" : "mt-3 pt-3 border-t border-primary/20"} flex items-center justify-center gap-4 text-xs`}>
                 <span className="flex items-center gap-1 text-primary">
                   <CheckCircle2 className="h-3 w-3" />
                   {paidCount} pagos
@@ -989,6 +1048,16 @@ export function GameDetailsPage({ initialGame }: GameDetailsPageProps) {
                 )}
               </div>
             )}
+            <div className={`${(game.location || (isAdmin && approvedParticipants.length > 0)) ? "mt-3" : "mt-3 pt-3 border-t border-primary/20"}`}>
+              <Button
+                onClick={shareOnWhatsApp}
+                className="w-full bg-[#25D366] hover:bg-[#1da851] text-white h-10"
+                size="sm"
+              >
+                <Share2 className="h-4 w-4 mr-2" />
+                Compartilhar no WhatsApp
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

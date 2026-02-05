@@ -68,6 +68,7 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
     game_date: "",
     game_time: "",
     court_value: "",
+    location: "",
     password: "",
     category: "futebol" as SportCategory,
   })
@@ -110,6 +111,7 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
           game_date: newGame.game_date,
           game_time: newGame.game_time,
           court_value: parseFloat(newGame.court_value) || 0,
+          location: newGame.location || null,
           password: newGame.password,
           category: newGame.category,
         }),
@@ -118,7 +120,7 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
       if (response.ok) {
         const createdGame = await response.json()
         setGames([...games, { ...createdGame, participants: [] }])
-        setNewGame({ name: "", game_date: "", game_time: "", court_value: "", password: "", category: "futebol" })
+        setNewGame({ name: "", game_date: "", game_time: "", court_value: "", location: "", password: "", category: "futebol" })
         setDialogOpen(false)
       }
     } catch (error) {
@@ -194,6 +196,13 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
                 </Badge>
               )}
             </div>
+
+            {game.location && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <MapPin className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{game.location}</span>
+              </div>
+            )}
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
@@ -331,6 +340,15 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
                         placeholder="Ex: 200.00"
                         value={newGame.court_value}
                         onChange={(e) => setNewGame({ ...newGame, court_value: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="location">Local</Label>
+                      <Input
+                        id="location"
+                        placeholder="Ex: Arena Soccer, Campo do Parque..."
+                        value={newGame.location}
+                        onChange={(e) => setNewGame({ ...newGame, location: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
