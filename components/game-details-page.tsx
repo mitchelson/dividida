@@ -652,7 +652,8 @@ export function GameDetailsPage({ initialGame, currentUser }: GameDetailsPagePro
     let message = `*${categoryInfo.icon} ${game.name}*\n`
     message += `${dateStr} as ${timeStr}\n`
     if (game.location) {
-      message += `📍 ${game.location}\n`
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(game.location)}`
+      message += `📍 ${game.location}\n${mapsUrl}\n`
     }
     message += `Valor: R$ ${Number(game.court_value).toFixed(0)}`
     if (approvedParticipants.length > 0) {
@@ -1066,9 +1067,16 @@ export function GameDetailsPage({ initialGame, currentUser }: GameDetailsPagePro
               </div>
             </div>
             {game.location && (
-              <div className="mt-3 pt-3 border-t border-primary/20 flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                <MapPin className="h-3 w-3" />
-                {game.location}
+              <div className="mt-3 pt-3 border-t border-primary/20 flex items-center justify-center text-xs">
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(game.location)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="underline decoration-dotted underline-offset-2">{game.location}</span>
+                </a>
               </div>
             )}
             {isAdmin && approvedParticipants.length > 0 && (
