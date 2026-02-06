@@ -203,16 +203,18 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
             </div>
 
             {game.location && (
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(game.location)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(game.location!)}`, "_blank")
+                }}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors text-left"
               >
                 <MapPin className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate underline decoration-dotted underline-offset-2">{game.location}</span>
-              </a>
+              </button>
             )}
 
             <div className="flex items-center justify-between">
