@@ -54,7 +54,6 @@ import {
   Check,
   X,
   Copy,
-  QrCode,
   ArrowLeft,
   Lock,
   LockOpen,
@@ -75,7 +74,6 @@ import {
   ExternalLink,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { QRCodeSVG } from "qrcode.react"
 import {
   DndContext,
   closestCenter,
@@ -1106,119 +1104,6 @@ export function GameDetailsPage({ initialGame, currentUser }: GameDetailsPagePro
           </CardContent>
         </Card>
 
-        {/* Add Participant */}
-        <Card className={game.list_closed ? "border-destructive/30 bg-destructive/5" : ""}>
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-sm flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                {game.list_closed ? (
-                  <Lock className="h-4 w-4 text-destructive" />
-                ) : (
-                  <Users className="h-4 w-4 text-primary" />
-                )}
-                {game.list_closed ? "Lista Fechada" : "Participar da Partida"}
-              </span>
-              {isAdmin && (
-                <Button
-                  variant={game.list_closed ? "default" : "outline"}
-                  size="sm"
-                  onClick={toggleListClosed}
-                  className="h-7 text-xs"
-                >
-                  {game.list_closed ? (
-                    <>
-                      <LockOpen className="h-3 w-3 mr-1" />
-                      Abrir
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="h-3 w-3 mr-1" />
-                      Fechar
-                    </>
-                  )}
-                </Button>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-2">
-            {game.list_closed ? (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-destructive/30 p-6 text-center">
-                <Lock className="mb-2 h-8 w-8 text-destructive/50" />
-                <p className="text-sm text-muted-foreground">As inscricoes estao encerradas</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  O valor por pessoa foi fixado em R$ {valuePerPerson.toFixed(2)}
-                </p>
-              </div>
-            ) : (
-              <>
-                {currentUser && !userAlreadyJoined ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
-                      <Avatar className="h-10 w-10 border border-primary/30">
-                        <AvatarImage src={currentUser.avatar_url || undefined} />
-                        <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">
-                          {currentUser.display_name?.slice(0, 2).toUpperCase() || "?"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {currentUser.display_name || "Jogador"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Entrar com seu perfil vinculado
-                        </p>
-                      </div>
-                      <Button
-                        onClick={() => addParticipant(currentUser.display_name || "Jogador")}
-                        disabled={isAdding}
-                        className="shrink-0 h-10"
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Participar
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      O organizador precisara aprovar sua participacao.
-                    </p>
-                  </div>
-                ) : currentUser && userAlreadyJoined ? (
-                  <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
-                    <User className="h-5 w-5 text-primary flex-shrink-0" />
-                    <p className="text-sm text-foreground">
-                      Voce ja esta inscrito nesta partida.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Seu nome"
-                        value={newParticipantName}
-                        onChange={(e) => setNewParticipantName(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && addParticipant()}
-                        className="h-10"
-                      />
-                      <Button onClick={() => addParticipant()} disabled={isAdding} className="shrink-0 h-10">
-                        <Plus className="h-4 w-4 mr-1" />
-                        <span className="hidden sm:inline">Participar</span>
-                        <span className="sm:hidden">OK</span>
-                      </Button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-muted-foreground">
-                        O organizador precisara aprovar sua participacao.
-                      </p>
-                      <Link href="/auth/login" className="text-xs text-primary hover:underline whitespace-nowrap ml-2">
-                        Fazer login
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Pending Participants (Admin) */}
         {isAdmin && pendingParticipants.length > 0 && (
           <Card className="border-accent/50">
@@ -1264,7 +1149,7 @@ export function GameDetailsPage({ initialGame, currentUser }: GameDetailsPagePro
           </Card>
         )}
 
-        {/* Confirmed Participants List */}
+        {/* Unified Participants Card -- list + join form */}
         <Card>
           <CardHeader className="p-4 pb-2">
             <CardTitle className="text-sm flex items-center justify-between">
@@ -1273,6 +1158,26 @@ export function GameDetailsPage({ initialGame, currentUser }: GameDetailsPagePro
                 Confirmados
               </span>
               <div className="flex items-center gap-2">
+                {isAdmin && (
+                  <Button
+                    variant={game.list_closed ? "default" : "outline"}
+                    size="sm"
+                    onClick={toggleListClosed}
+                    className="h-6 text-xs px-2"
+                  >
+                    {game.list_closed ? (
+                      <>
+                        <LockOpen className="h-3 w-3 mr-1" />
+                        Abrir
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-3 w-3 mr-1" />
+                        Fechar
+                      </>
+                    )}
+                  </Button>
+                )}
                 <Badge variant="outline" className="text-xs flex items-center gap-1">
                   {sortModeLabels[currentSortMode].icon}
                   {sortModeLabels[currentSortMode].label}
@@ -1310,70 +1215,121 @@ export function GameDetailsPage({ initialGame, currentUser }: GameDetailsPagePro
                 </div>
               </div>
             )}
+
+            {/* Join form -- integrated at the bottom */}
+            <div className="mt-4 pt-4 border-t border-border">
+              {game.list_closed ? (
+                <div className="flex items-center gap-2 rounded-lg border border-dashed border-destructive/30 bg-destructive/5 p-3 text-center justify-center">
+                  <Lock className="h-4 w-4 text-destructive/60" />
+                  <p className="text-sm text-muted-foreground">Inscricoes encerradas</p>
+                </div>
+              ) : (
+                <>
+                  {currentUser && !userAlreadyJoined ? (
+                    <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                      <Avatar className="h-9 w-9 border border-primary/30">
+                        <AvatarImage src={currentUser.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">
+                          {currentUser.display_name?.slice(0, 2).toUpperCase() || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {currentUser.display_name || "Jogador"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Perfil vinculado</p>
+                      </div>
+                      <Button
+                        onClick={() => addParticipant(currentUser.display_name || "Jogador")}
+                        disabled={isAdding}
+                        size="sm"
+                        className="shrink-0"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Participar
+                      </Button>
+                    </div>
+                  ) : currentUser && userAlreadyJoined ? (
+                    <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 justify-center">
+                      <User className="h-4 w-4 text-primary flex-shrink-0" />
+                      <p className="text-sm text-foreground">Voce ja esta nesta lista.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Seu nome"
+                          value={newParticipantName}
+                          onChange={(e) => setNewParticipantName(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && addParticipant()}
+                          className="h-9"
+                        />
+                        <Button onClick={() => addParticipant()} disabled={isAdding} size="sm" className="shrink-0">
+                          <Plus className="h-4 w-4 mr-1" />
+                          <span className="hidden sm:inline">Participar</span>
+                          <span className="sm:hidden">OK</span>
+                        </Button>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">Sujeito a aprovacao do organizador.</p>
+                        <Link href="/auth/login" className="text-xs text-primary hover:underline whitespace-nowrap ml-2">
+                          Fazer login
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </CardContent>
         </Card>
 
-        {/* PIX QR Code */}
+        {/* PIX Copia e Cola */}
         {isPixConfigured && approvedParticipants.length > 0 && valuePerPerson > 0 && (
           <Card className="border-primary/20">
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <QrCode className="h-4 w-4 text-primary" />
-                PIX para Pagamento
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-2 space-y-4">
-              <div className="flex flex-col items-center gap-3">
-                <div className="rounded-xl bg-card p-3 shadow-lg border">
-                  <QRCodeSVG value={pixPayload} size={160} level="M" includeMargin className="rounded-lg" />
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground">Valor a pagar</p>
-                  <p className="text-2xl font-bold text-primary">R$ {valuePerPerson.toFixed(2)}</p>
-                </div>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-primary" />
+                  PIX
+                </p>
+                <p className="text-lg font-bold text-primary">R$ {valuePerPerson.toFixed(2)}</p>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Codigo PIX Copia e Cola</Label>
-                <div className="flex gap-2">
-                  <Input readOnly value={pixPayload} className="bg-muted font-mono text-xs h-10" />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => copyToClipboard(pixPayload, "pix")}
-                    className="shrink-0 h-10 w-10"
-                  >
-                    {copiedId === "pix" ? (
-                      <Check className="h-4 w-4 text-primary" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-                {copiedId === "pix" && <p className="text-xs text-primary">Copiado!</p>}
+              <div className="flex gap-2">
+                <Input readOnly value={pixPayload} className="bg-muted font-mono text-xs h-9" />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => copyToClipboard(pixPayload, "pix")}
+                  className="shrink-0 h-9 w-9"
+                >
+                  {copiedId === "pix" ? (
+                    <Check className="h-4 w-4 text-primary" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
-              <div className="rounded-lg bg-muted p-3 text-xs">
-                <p className="font-medium text-foreground mb-1">Recebedor:</p>
-                <p className="text-muted-foreground">{game.pix_receiver_name}</p>
-                <p className="text-muted-foreground truncate">{game.pix_key}</p>
+              {copiedId === "pix" && <p className="text-xs text-primary">Copiado!</p>}
+              <div className="rounded-lg bg-muted p-2.5 text-xs flex items-center justify-between">
+                <span className="text-muted-foreground">{game.pix_receiver_name}</span>
+                <span className="text-muted-foreground truncate ml-2 max-w-[50%] text-right">{game.pix_key}</span>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {!isPixConfigured && (
+        {!isPixConfigured && isAdmin && (
           <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-6">
-              <QrCode className="mb-2 h-8 w-8 text-muted-foreground/50" />
-              <p className="text-sm font-medium text-foreground">PIX nao configurado</p>
-              <p className="text-xs text-center text-muted-foreground mt-1">
-                {isAdmin ? "Configure os dados do PIX para gerar o QR Code" : "O organizador ainda nao configurou os dados do PIX"}
-              </p>
-              {isAdmin && (
-                <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)} className="mt-3">
-                  <Settings className="mr-1 h-3 w-3" />
-                  Configurar
-                </Button>
-              )}
+            <CardContent className="flex items-center justify-between p-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">PIX nao configurado</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Configure para gerar o codigo de pagamento</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
+                <Settings className="mr-1 h-3 w-3" />
+                Configurar
+              </Button>
             </CardContent>
           </Card>
         )}
