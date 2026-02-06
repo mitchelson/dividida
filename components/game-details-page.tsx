@@ -712,8 +712,7 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
     let message = `*${categoryInfo.icon} ${game.name}*\n`
     message += `\u{1F4C5} ${dateStr} \u{23F0} ${timeStr}\n`
     if (game.location) {
-      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(game.location)}`
-      message += `\u{1F4CD} ${game.location}\n${mapsUrl}\n`
+      message += `\u{1F4CD} ${game.location}\n`
     }
     message += `\u{1F4B0} R$ ${Number(game.court_value).toFixed(0)}`
     if (approvedParticipants.length > 0) {
@@ -741,7 +740,7 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
     message += `\u{1F449} Coloque seu nome na lista:\n${gameUrl}`
 
     const encoded = encodeURIComponent(message)
-    window.open(`https://wa.me/?text=${encoded}`, "_blank")
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, "_blank")
   }
 
   const paidCount = approvedParticipants.filter((p) => p.paid).length
