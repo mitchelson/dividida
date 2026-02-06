@@ -39,6 +39,7 @@ export interface Game {
   location: string | null
   sort_mode: SortMode
   players_per_team: number
+  champion_photo_url: string | null
   created_at: string
   updated_at: string
 }

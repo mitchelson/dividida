@@ -2,8 +2,9 @@
 
 import React from "react"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useRef } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -72,6 +73,10 @@ import {
   MapPin,
   User,
   ExternalLink,
+  Camera,
+  Loader2,
+  ImageIcon,
+  Trophy,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -100,9 +105,17 @@ interface CurrentUser {
   avatar_url: string | null
 }
 
+interface ParticipantProfile {
+  display_name: string | null
+  avatar_url: string | null
+  overall: number
+  position: string
+}
+
 interface GameDetailsPageProps {
   initialGame: Game & { participants: Participant[] }
   currentUser?: CurrentUser | null
+  participantProfiles?: Record<string, ParticipantProfile>
 }
 
 function SortableParticipantRow({
@@ -112,6 +125,7 @@ function SortableParticipantRow({
   isDragMode,
   sortMode,
   teamIndex,
+  profile,
   updateParticipantPaid,
   updateParticipantBadges,
   removeParticipant,
@@ -122,6 +136,7 @@ function SortableParticipantRow({
   isDragMode: boolean
   sortMode: SortMode
   teamIndex?: number
+  profile?: ParticipantProfile | null
   updateParticipantPaid: (id: string, paid: boolean) => void
   updateParticipantBadges: (id: string, badges: ParticipantBadge[]) => void
   removeParticipant: (id: string) => void
@@ -173,30 +188,47 @@ function SortableParticipantRow({
         {!isDragMode && !isAdmin && participant.paid && (
           <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
         )}
-        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary flex-shrink-0">
-          {index + 1}
-        </div>
+        <span className="text-xs font-medium text-muted-foreground w-5 text-center flex-shrink-0">{index + 1}</span>
+        {profile?.avatar_url ? (
+          <Avatar className="h-7 w-7 flex-shrink-0 border border-border">
+            <AvatarImage src={profile.avatar_url || "/placeholder.svg"} />
+            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+              {participant.name.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        ) : (
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground flex-shrink-0">
+            {participant.name.slice(0, 2).toUpperCase()}
+          </div>
+        )}
         <div className="min-w-0 flex-1">
-          {!isAdmin && hasProfile ? (
-            <Link
-              href={`/jogador/${participant.user_id}`}
-              className={`font-medium text-sm truncate block underline decoration-dotted underline-offset-2 hover:decoration-solid ${participant.paid ? "text-primary" : "text-foreground"}`}
-            >
-              {participant.name}
-            </Link>
-          ) : (
-            <span className={`font-medium text-sm truncate block ${participant.paid ? "text-primary" : "text-foreground"}`}>
-              {participant.name}
-            </span>
-          )}
+          <div className="flex items-center gap-1.5">
+            {!isAdmin && hasProfile ? (
+              <Link
+                href={`/jogador/${participant.user_id}`}
+                className={`font-medium text-sm truncate underline decoration-dotted underline-offset-2 hover:decoration-solid ${participant.paid ? "text-primary" : "text-foreground"}`}
+              >
+                {participant.name}
+              </Link>
+            ) : (
+              <span className={`font-medium text-sm truncate ${participant.paid ? "text-primary" : "text-foreground"}`}>
+                {participant.name}
+              </span>
+            )}
+            {profile && (
+              <span className="inline-flex items-center justify-center h-5 min-w-[28px] px-1 rounded bg-primary/15 text-[10px] font-bold text-primary flex-shrink-0">
+                {profile.overall}
+              </span>
+            )}
+          </div>
           {(participant.badges?.length ?? 0) > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
+            <div className="flex flex-wrap gap-1 mt-0.5">
               {participant.badges?.map((badge) => {
                 const badgeInfo = PARTICIPANT_BADGES.find((b) => b.value === badge)
                 return badgeInfo ? (
                   <Badge
                     key={badge}
-                    className={`text-xs px-1.5 py-0 ${badgeInfo.color} text-white`}
+                    className={`text-[10px] px-1 py-0 leading-tight ${badgeInfo.color} text-white`}
                   >
                     {badgeInfo.label}
                   </Badge>
@@ -277,7 +309,7 @@ function SortableParticipantRow({
   )
 }
 
-export function GameDetailsPage({ initialGame, currentUser }: GameDetailsPageProps) {
+export function GameDetailsPage({ initialGame, currentUser, participantProfiles = {} }: GameDetailsPageProps) {
   const router = useRouter()
   const [game, setGame] = useState(initialGame)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -286,6 +318,8 @@ export function GameDetailsPage({ initialGame, currentUser }: GameDetailsPagePro
   const [passwordError, setPasswordError] = useState("")
   const [newParticipantName, setNewParticipantName] = useState("")
   const [isAdding, setIsAdding] = useState(false)
+  const [isUploadingChampion, setIsUploadingChampion] = useState(false)
+  const championInputRef = useRef<HTMLInputElement>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -529,6 +563,34 @@ export function GameDetailsPage({ initialGame, currentUser }: GameDetailsPagePro
     }
   }
 
+  const handleChampionUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploadingChampion(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("folder", "champion-photos")
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData })
+      if (!uploadRes.ok) throw new Error("Upload failed")
+      const { url } = await uploadRes.json()
+
+      const saveRes = await fetch(`/api/games/${game.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ champion_photo_url: url, password: adminPassword }),
+      })
+      if (saveRes.ok) {
+        setGame((prev) => ({ ...prev, champion_photo_url: url }))
+      }
+    } catch (error) {
+      console.error("Erro ao enviar foto:", error)
+    } finally {
+      setIsUploadingChampion(false)
+      if (championInputRef.current) championInputRef.current.value = ""
+    }
+  }
+
   const toggleListClosed = async () => {
     try {
       const response = await fetch(`/api/games/${game.id}`, {
@@ -734,6 +796,7 @@ export function GameDetailsPage({ initialGame, currentUser }: GameDetailsPagePro
                     isDragMode={false}
                     sortMode={currentSortMode}
                     teamIndex={groupIndex}
+                    profile={participant.user_id ? participantProfiles[participant.user_id] : null}
                     updateParticipantPaid={updateParticipantPaid}
                     updateParticipantBadges={updateParticipantBadges}
                     removeParticipant={removeParticipant}
@@ -757,6 +820,7 @@ export function GameDetailsPage({ initialGame, currentUser }: GameDetailsPagePro
             isAdmin={isAdmin}
             isDragMode={isDragMode}
             sortMode={currentSortMode}
+            profile={participant.user_id ? participantProfiles[participant.user_id] : null}
             updateParticipantPaid={updateParticipantPaid}
             updateParticipantBadges={updateParticipantBadges}
             removeParticipant={removeParticipant}
@@ -1334,6 +1398,81 @@ export function GameDetailsPage({ initialGame, currentUser }: GameDetailsPagePro
             </CardContent>
           </Card>
         )}
+
+        {/* Champion Photo */}
+        {game.champion_photo_url ? (
+          <Card className="border-primary/20 overflow-hidden">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-yellow-500" />
+                  Time Campeao
+                </span>
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => championInputRef.current?.click()}
+                    disabled={isUploadingChampion}
+                  >
+                    {isUploadingChampion ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <>
+                        <Camera className="h-3 w-3 mr-1" />
+                        Trocar
+                      </>
+                    )}
+                  </Button>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <div className="rounded-lg overflow-hidden border border-border">
+                <Image
+                  src={game.champion_photo_url || "/placeholder.svg"}
+                  alt="Time campeao"
+                  width={600}
+                  height={400}
+                  className="w-full h-auto object-cover"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        ) : isAdmin ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-6">
+              <Trophy className="mb-2 h-8 w-8 text-muted-foreground/50" />
+              <p className="text-sm font-medium text-foreground">Foto do Time Campeao</p>
+              <p className="text-xs text-center text-muted-foreground mt-1">
+                Poste a foto do time vencedor da partida
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => championInputRef.current?.click()}
+                className="mt-3"
+                disabled={isUploadingChampion}
+              >
+                {isUploadingChampion ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <ImageIcon className="mr-1 h-3 w-3" />
+                )}
+                {isUploadingChampion ? "Enviando..." : "Enviar Foto"}
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        <input
+          ref={championInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleChampionUpload}
+          className="hidden"
+        />
       </main>
 
       {/* Delete Dialog */}

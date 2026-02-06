@@ -41,6 +41,7 @@ import {
   MapPin,
   User,
   LogIn,
+  Trophy,
 } from "lucide-react"
 import type { Game, Participant, SportCategory } from "@/lib/types"
 import { SPORT_CATEGORIES } from "@/lib/types"
@@ -73,16 +74,15 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
     category: "futebol" as SportCategory,
   })
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
   const { upcomingGames, pastGames } = useMemo(() => {
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
     const upcoming: (Game & { participants: Participant[] })[] = []
     const past: (Game & { participants: Participant[] })[] = []
 
     games.forEach((game) => {
       const gameDate = new Date(game.game_date + "T00:00:00")
-      if (gameDate >= today) {
+      if (gameDate >= now) {
         upcoming.push(game)
       } else {
         past.push(game)
@@ -93,7 +93,7 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
     past.sort((a, b) => new Date(b.game_date).getTime() - new Date(a.game_date).getTime())
 
     return { upcomingGames: upcoming, pastGames: past }
-  }, [games, today])
+  }, [games])
 
   const handleCreateGame = async () => {
     if (!newGame.name || !newGame.game_date || !newGame.game_time || !newGame.password) {
@@ -172,7 +172,12 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
                   </CardDescription>
                 </div>
               </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {game.champion_photo_url && (
+                  <Trophy className="h-4 w-4 text-yellow-500" />
+                )}
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-4 pt-2 space-y-3">

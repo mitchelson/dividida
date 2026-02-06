@@ -1,7 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import React from "react"
+
+import { useState, useRef } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -33,6 +36,8 @@ import {
   Trophy,
   Target,
   Handshake,
+  Camera,
+  Loader2,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { PlayerCard } from "@/components/player-card"
@@ -48,7 +53,9 @@ export function ProfilePageClient({ initialProfile, userEmail }: ProfilePageClie
   const router = useRouter()
   const [profile, setProfile] = useState<PlayerProfile>(initialProfile)
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
   const [editData, setEditData] = useState({
     display_name: profile.display_name || "",
     position: profile.position || "ATA",
@@ -88,6 +95,35 @@ export function ProfilePageClient({ initialProfile, userEmail }: ProfilePageClie
     await supabase.auth.signOut()
     router.push("/")
     router.refresh()
+  }
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploadingAvatar(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("folder", "avatars")
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData })
+      if (!uploadRes.ok) throw new Error("Upload failed")
+      const { url } = await uploadRes.json()
+
+      const saveRes = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatar_url: url }),
+      })
+      if (saveRes.ok) {
+        const updatedProfile = await saveRes.json()
+        setProfile(updatedProfile)
+      }
+    } catch (error) {
+      console.error("Erro ao enviar foto:", error)
+    } finally {
+      setIsUploadingAvatar(false)
+      if (avatarInputRef.current) avatarInputRef.current.value = ""
+    }
   }
 
   const statFields = [
@@ -279,7 +315,53 @@ export function ProfilePageClient({ initialProfile, userEmail }: ProfilePageClie
       </header>
 
       <main className="flex-1 px-4 py-4 space-y-4">
-        {/* Player Card */}
+        {/* Avatar Upload + Player Card */}
+        <div className="space-y-3">
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={isUploadingAvatar}
+              className="relative group"
+            >
+              <div className="h-20 w-20 rounded-full border-2 border-primary/30 overflow-hidden bg-muted">
+                {profile.avatar_url ? (
+                  <Image
+                    src={profile.avatar_url || "/placeholder.svg"}
+                    alt={profile.display_name || "Avatar"}
+                    width={80}
+                    height={80}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center bg-primary/10">
+                    <User className="h-8 w-8 text-primary/40" />
+                  </div>
+                )}
+              </div>
+              <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {isUploadingAvatar ? (
+                  <Loader2 className="h-5 w-5 text-white animate-spin" />
+                ) : (
+                  <Camera className="h-5 w-5 text-white" />
+                )}
+              </div>
+              {isUploadingAvatar && (
+                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
+                  <Loader2 className="h-5 w-5 text-white animate-spin" />
+                </div>
+              )}
+            </button>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              className="hidden"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground text-center">Toque na foto para alterar</p>
+        </div>
         <PlayerCard profile={profile} size="lg" />
 
         {/* Quick Stats */}
