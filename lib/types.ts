@@ -40,6 +40,7 @@ export interface Game {
   sort_mode: SortMode
   players_per_team: number
   champion_photo_url: string | null
+  fixed_value_per_person: number | null
   created_at: string
   updated_at: string
 }

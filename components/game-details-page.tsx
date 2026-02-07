@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import {
   Dialog,
   DialogContent,
@@ -335,6 +336,7 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
     category: (game.category || "futebol") as SportCategory,
     sort_mode: (game.sort_mode || "payment") as SortMode,
     players_per_team: String(game.players_per_team || 5),
+    fixed_value_per_person: game.fixed_value_per_person != null ? String(game.fixed_value_per_person) : "",
   })
 
   const approvedParticipants = game.participants.filter((p) => p.status === "approved")
@@ -388,10 +390,13 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
     return groups
   }, [sortedApproved, currentSortMode, game.players_per_team])
 
+  const isValueFixed = game.fixed_value_per_person != null && Number(game.fixed_value_per_person) > 0
+
   const valuePerPerson = useMemo(() => {
+    if (isValueFixed) return Number(game.fixed_value_per_person)
     if (approvedParticipants.length === 0 || Number(game.court_value) <= 0) return 0
     return Number(game.court_value) / approvedParticipants.length
-  }, [approvedParticipants.length, game.court_value])
+  }, [approvedParticipants.length, game.court_value, game.fixed_value_per_person, isValueFixed])
 
   const categoryInfo = SPORT_CATEGORIES.find((c) => c.value === (game.category || "futebol")) || SPORT_CATEGORIES[0]
 
@@ -535,6 +540,7 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
           ...editData,
           court_value: parseFloat(editData.court_value) || 0,
           players_per_team: parseInt(editData.players_per_team) || 5,
+          fixed_value_per_person: editData.fixed_value_per_person ? parseFloat(editData.fixed_value_per_person) : null,
           password: adminPassword,
         }),
       })
@@ -948,6 +954,42 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
                             onChange={(e) => setEditData({ ...editData, court_value: e.target.value })}
                           />
                         </div>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <Label>Fixar valor por pessoa</Label>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                O valor nao muda ao adicionar jogadores
+                              </p>
+                            </div>
+                            <Switch
+                              checked={editData.fixed_value_per_person !== ""}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  const currentPerPerson = approvedParticipants.length > 0
+                                    ? (parseFloat(editData.court_value) || 0) / approvedParticipants.length
+                                    : 0
+                                  setEditData({ ...editData, fixed_value_per_person: currentPerPerson.toFixed(2) })
+                                } else {
+                                  setEditData({ ...editData, fixed_value_per_person: "" })
+                                }
+                              }}
+                            />
+                          </div>
+                          {editData.fixed_value_per_person !== "" && (
+                            <div className="space-y-1">
+                              <Label className="text-xs">Valor fixo (R$)</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={editData.fixed_value_per_person}
+                                onChange={(e) => setEditData({ ...editData, fixed_value_per_person: e.target.value })}
+                                className="h-9"
+                              />
+                            </div>
+                          )}
+                        </div>
                         <div className="space-y-2">
                           <Label>Local</Label>
                           <Input
@@ -1121,8 +1163,11 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
                   <p className="text-sm font-bold text-foreground">{approvedParticipants.length}</p>
                 </div>
                 <div className="h-6 w-px bg-primary/20" />
-                <div className="bg-primary rounded-md px-2.5 py-0.5 text-center">
-                  <p className="text-[10px] text-primary-foreground/80 leading-tight">Por pessoa</p>
+                <div className="bg-primary rounded-md px-2.5 py-0.5 text-center relative">
+                  <p className="text-[10px] text-primary-foreground/80 leading-tight flex items-center justify-center gap-0.5">
+                    {isValueFixed && <Lock className="h-2.5 w-2.5" />}
+                    Por pessoa
+                  </p>
                   <p className="text-sm font-bold text-primary-foreground">R$ {valuePerPerson.toFixed(2)}</p>
                 </div>
               </div>
