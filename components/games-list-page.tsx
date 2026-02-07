@@ -203,32 +203,17 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
             </div>
 
             {game.location && (
-              <span
-                role="button"
-                tabIndex={0}
+              <div
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  window.open(
-                    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(game.location!)}`,
-                    "_blank",
-                  )
+                  window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(game.location!)}`, "_blank")
                 }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    window.open(
-                      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(game.location!)}`,
-                      "_blank",
-                    )
-                  }
-                }}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors text-left cursor-pointer"
               >
                 <MapPin className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate underline decoration-dotted underline-offset-2">{game.location}</span>
-              </span>
+              </div>
             )}
 
             <div className="flex items-center justify-between">

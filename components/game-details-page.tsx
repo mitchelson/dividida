@@ -390,13 +390,18 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
     return groups
   }, [sortedApproved, currentSortMode, game.players_per_team])
 
-  const isValueFixed = game.fixed_value_per_person != null && Number(game.fixed_value_per_person) > 0
+  const fixedValue = game.fixed_value_per_person != null ? Number(game.fixed_value_per_person) : 0
+  const isValueFixed = fixedValue > 0
 
-  const valuePerPerson = useMemo(() => {
-    if (isValueFixed) return Number(game.fixed_value_per_person)
-    if (approvedParticipants.length === 0 || Number(game.court_value) <= 0) return 0
-    return Number(game.court_value) / approvedParticipants.length
-  }, [approvedParticipants.length, game.court_value, game.fixed_value_per_person, isValueFixed])
+  const valuePerPerson = isValueFixed
+    ? fixedValue
+    : approvedParticipants.length > 0 && Number(game.court_value) > 0
+      ? Number(game.court_value) / approvedParticipants.length
+      : 0
+
+  const surplusValue = isValueFixed
+    ? (fixedValue * approvedParticipants.length) - Number(game.court_value)
+    : 0
 
   const categoryInfo = SPORT_CATEGORIES.find((c) => c.value === (game.category || "futebol")) || SPORT_CATEGORIES[0]
 
@@ -1184,15 +1189,13 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
             {(game.location || (isAdmin && approvedParticipants.length > 0)) && (
               <div className="mt-2 pt-2 border-t border-primary/20 flex items-center justify-between text-xs">
                 {game.location && (
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(game.location)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
+                  <div
+                    className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                    onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(game.location!)}`, "_blank")}
                   >
                     <MapPin className="h-3 w-3 flex-shrink-0" />
                     <span className="underline decoration-dotted underline-offset-2 truncate">{game.location}</span>
-                  </a>
+                  </div>
                 )}
                 {isAdmin && approvedParticipants.length > 0 && (
                   <div className="flex items-center gap-3 ml-auto">
@@ -1208,6 +1211,14 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
                     )}
                   </div>
                 )}
+              </div>
+            )}
+            {isAdmin && isValueFixed && approvedParticipants.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-primary/20 flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Arrecadacao: R$ {(fixedValue * approvedParticipants.length).toFixed(2)}</span>
+                <span className={surplusValue >= 0 ? "font-semibold text-emerald-600" : "font-semibold text-destructive"}>
+                  {surplusValue >= 0 ? "Sobra" : "Falta"}: R$ {Math.abs(surplusValue).toFixed(2)}
+                </span>
               </div>
             )}
           </CardContent>
