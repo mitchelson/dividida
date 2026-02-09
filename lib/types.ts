@@ -54,6 +54,7 @@ export interface Participant {
   paid_at: string | null
   badges: ParticipantBadge[]
   sort_order: number
+  team_index: number | null
   user_id: string | null
   created_at: string
   updated_at: string
@@ -61,6 +62,32 @@ export interface Participant {
 
 export interface GameWithParticipants extends Game {
   participants: Participant[]
+}
+
+export type MatchStatus = 'pending' | 'playing' | 'finished'
+
+export interface Match {
+  id: string
+  game_id: string
+  team_a_name: string
+  team_b_name: string
+  score_a: number
+  score_b: number
+  status: MatchStatus
+  elapsed_seconds: number
+  match_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Goal {
+  id: string
+  match_id: string
+  game_id: string
+  participant_id: string
+  team: 'a' | 'b'
+  minute: number | null
+  created_at: string
 }
 
 export interface PlayerProfile {

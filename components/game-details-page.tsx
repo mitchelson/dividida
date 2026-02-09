@@ -78,6 +78,8 @@ import {
   Loader2,
   ImageIcon,
   Trophy,
+  Swords,
+  BarChart3,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -98,6 +100,8 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import type { Game, Participant, SportCategory, ParticipantBadge, SortMode } from "@/lib/types"
+import { TeamManager } from "@/components/team-manager"
+import { MatchManager } from "@/components/match-manager"
 import { SPORT_CATEGORIES, PARTICIPANT_BADGES } from "@/lib/types"
 
 interface CurrentUser {
@@ -379,6 +383,43 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
   const teamGroups = useMemo(() => {
     if (currentSortMode !== "teams") return []
     const perTeam = game.players_per_team || 5
+
+    // Check if any participant has explicit team_index
+    const hasExplicitTeams = sortedApproved.some((p) => p.team_index != null)
+
+    if (hasExplicitTeams) {
+      // Group by team_index
+      const teamMap: Record<number, Participant[]> = {}
+      const unassigned: Participant[] = []
+
+      sortedApproved.forEach((p) => {
+        if (p.team_index != null && p.team_index >= 0) {
+          if (!teamMap[p.team_index]) teamMap[p.team_index] = []
+          teamMap[p.team_index].push(p)
+        } else {
+          unassigned.push(p)
+        }
+      })
+
+      // Distribute unassigned sequentially
+      const numTeams = Math.max(2, Math.ceil(sortedApproved.length / perTeam))
+      unassigned.forEach((p, i) => {
+        const idx = i % numTeams
+        if (!teamMap[idx]) teamMap[idx] = []
+        teamMap[idx].push(p)
+      })
+
+      const maxTeam = Math.max(...Object.keys(teamMap).map(Number), 0)
+      const groups: { label: string; participants: Participant[] }[] = []
+      for (let i = 0; i <= maxTeam; i++) {
+        if (teamMap[i] && teamMap[i].length > 0) {
+          groups.push({ label: `Time ${i + 1}`, participants: teamMap[i] })
+        }
+      }
+      return groups
+    }
+
+    // Fallback: slice sequentially
     const groups: { label: string; participants: Participant[] }[] = []
     for (let i = 0; i < sortedApproved.length; i += perTeam) {
       const teamNumber = Math.floor(i / perTeam) + 1
@@ -775,47 +816,25 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
       )
     }
 
-    if (currentSortMode === "teams" && teamGroups.length > 0) {
+    if (currentSortMode === "teams" && sortedApproved.length > 0) {
       return (
-        <div className="space-y-4">
-          {teamGroups.map((group, groupIndex) => (
-            <div key={group.label} className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className={`text-xs ${
-                    groupIndex % 2 === 0
-                      ? "border-primary/50 text-primary bg-primary/5"
-                      : "border-accent/50 text-accent-foreground bg-accent/10"
-                  }`}
-                >
-                  <UsersRound className="h-3 w-3 mr-1" />
-                  {group.label}
-                </Badge>
-                <span className="text-xs text-muted-foreground">
-                  {group.participants.length}/{game.players_per_team || 5}
-                </span>
-              </div>
-              <div className="space-y-2 pl-2 border-l-2 border-border">
-                {group.participants.map((participant, index) => (
-                  <SortableParticipantRow
-                    key={participant.id}
-                    participant={participant}
-                    index={groupIndex * (game.players_per_team || 5) + index}
-                    isAdmin={isAdmin}
-                    isDragMode={false}
-                    sortMode={currentSortMode}
-                    teamIndex={groupIndex}
-                    profile={participant.user_id ? participantProfiles[participant.user_id] : null}
-                    updateParticipantPaid={updateParticipantPaid}
-                    updateParticipantBadges={updateParticipantBadges}
-                    removeParticipant={removeParticipant}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <TeamManager
+          participants={sortedApproved}
+          playersPerTeam={game.players_per_team || 5}
+          profiles={participantProfiles}
+          isAdmin={isAdmin}
+          gameId={game.id}
+          adminPassword={adminPassword}
+          onUpdate={(updatedParticipants) => {
+            setGame((prev) => ({
+              ...prev,
+              participants: prev.participants.map((p) => {
+                const updated = updatedParticipants.find((u) => u.id === p.id)
+                return updated || p
+              }),
+            }))
+          }}
+        />
       )
     }
 
@@ -1403,6 +1422,34 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
             </div>
           </CardContent>
         </Card>
+
+        {/* Matches Section - only when in teams mode and has teams */}
+        {currentSortMode === "teams" && approvedParticipants.length >= 2 && (
+          <Card>
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Swords className="h-4 w-4 text-primary" />
+                  Partidas
+                </span>
+                <Link href={`/jogo/${game.id}/resumo`}>
+                  <Button variant="ghost" size="sm" className="h-6 text-xs px-2">
+                    <BarChart3 className="h-3 w-3 mr-1" />
+                    Resumo
+                  </Button>
+                </Link>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <MatchManager
+                gameId={game.id}
+                adminPassword={adminPassword}
+                isAdmin={isAdmin}
+                teamGroups={teamGroups}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* PIX Copia e Cola */}
         {isPixConfigured && approvedParticipants.length > 0 && valuePerPerson > 0 && (
