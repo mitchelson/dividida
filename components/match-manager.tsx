@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -183,7 +184,8 @@ function MatchCard({
   const teamBGoals = matchGoals.filter((g) => g.team === "b")
 
   const allParticipants = teamGroups.flatMap((g) => g.participants)
-  const getPlayerName = (id: string) => allParticipants.find((p) => p.id === id)?.name || "?"
+  const getPlayer = (id: string) => allParticipants.find((p) => p.id === id)
+  const getPlayerName = (id: string) => getPlayer(id)?.name || "?"
 
   const isFinished = match.status === "finished"
 
@@ -244,24 +246,44 @@ function MatchCard({
         {matchGoals.length > 0 && (
           <div className="px-3 pb-2 flex gap-4 text-[10px]">
             <div className="flex-1 space-y-0.5">
-              {teamAGoals.map((g) => (
-                <div key={g.id} className="flex items-center justify-between text-muted-foreground">
-                  <span>{getPlayerName(g.participant_id)} {g.minute != null ? `${formatTime(g.minute)}` : ""}</span>
-                  {isAdmin && !isFinished && (
-                    <button type="button" onClick={() => removeGoal(g)} className="text-destructive hover:underline ml-1">x</button>
-                  )}
-                </div>
-              ))}
+              {teamAGoals.map((g) => {
+                const player = getPlayer(g.participant_id)
+                return (
+                  <div key={g.id} className="flex items-center justify-between text-muted-foreground">
+                    <span>
+                      {player?.user_id ? (
+                        <Link href={`/jogador/${player.user_id}`} className="hover:text-primary underline decoration-dotted underline-offset-2">{player.name}</Link>
+                      ) : (
+                        getPlayerName(g.participant_id)
+                      )}
+                      {g.minute != null ? ` ${formatTime(g.minute)}` : ""}
+                    </span>
+                    {isAdmin && !isFinished && (
+                      <button type="button" onClick={() => removeGoal(g)} className="text-destructive hover:underline ml-1">x</button>
+                    )}
+                  </div>
+                )
+              })}
             </div>
             <div className="flex-1 space-y-0.5">
-              {teamBGoals.map((g) => (
-                <div key={g.id} className="flex items-center justify-between text-muted-foreground">
-                  <span>{getPlayerName(g.participant_id)} {g.minute != null ? `${formatTime(g.minute)}` : ""}</span>
-                  {isAdmin && !isFinished && (
-                    <button type="button" onClick={() => removeGoal(g)} className="text-destructive hover:underline ml-1">x</button>
-                  )}
-                </div>
-              ))}
+              {teamBGoals.map((g) => {
+                const player = getPlayer(g.participant_id)
+                return (
+                  <div key={g.id} className="flex items-center justify-between text-muted-foreground">
+                    <span>
+                      {player?.user_id ? (
+                        <Link href={`/jogador/${player.user_id}`} className="hover:text-primary underline decoration-dotted underline-offset-2">{player.name}</Link>
+                      ) : (
+                        getPlayerName(g.participant_id)
+                      )}
+                      {g.minute != null ? ` ${formatTime(g.minute)}` : ""}
+                    </span>
+                    {isAdmin && !isFinished && (
+                      <button type="button" onClick={() => removeGoal(g)} className="text-destructive hover:underline ml-1">x</button>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

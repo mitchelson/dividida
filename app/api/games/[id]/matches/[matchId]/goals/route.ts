@@ -54,6 +54,28 @@ export async function POST(
       .eq("id", matchId)
   }
 
+  // Sync goal count to profile if participant is a logged-in user
+  const { data: participant } = await supabase
+    .from("participants")
+    .select("user_id")
+    .eq("id", participant_id)
+    .single()
+
+  if (participant?.user_id) {
+    const { count } = await supabase
+      .from("goals")
+      .select("id", { count: "exact", head: true })
+      .in(
+        "participant_id",
+        (await supabase.from("participants").select("id").eq("user_id", participant.user_id)).data?.map((p) => p.id) || []
+      )
+
+    await supabase
+      .from("profiles")
+      .update({ goals: count || 0 })
+      .eq("id", participant.user_id)
+  }
+
   return NextResponse.json(goal)
 }
 
@@ -73,6 +95,9 @@ export async function DELETE(
   const isValid = await bcrypt.compare(password, game.password_hash)
   if (!isValid) return NextResponse.json({ error: "Senha incorreta" }, { status: 401 })
 
+  // Get the goal before deleting to know the participant
+  const { data: goalData } = await supabase.from("goals").select("participant_id").eq("id", goal_id).single()
+
   await supabase.from("goals").delete().eq("id", goal_id)
 
   // Decrease match score
@@ -83,6 +108,30 @@ export async function DELETE(
       .from("matches")
       .update({ [scoreField]: Math.max(0, (match[scoreField] as number) - 1) })
       .eq("id", matchId)
+  }
+
+  // Sync goal count to profile if participant is a logged-in user
+  if (goalData?.participant_id) {
+    const { data: participant } = await supabase
+      .from("participants")
+      .select("user_id")
+      .eq("id", goalData.participant_id)
+      .single()
+
+    if (participant?.user_id) {
+      const { count } = await supabase
+        .from("goals")
+        .select("id", { count: "exact", head: true })
+        .in(
+          "participant_id",
+          (await supabase.from("participants").select("id").eq("user_id", participant.user_id)).data?.map((p) => p.id) || []
+        )
+
+      await supabase
+        .from("profiles")
+        .update({ goals: count || 0 })
+        .eq("id", participant.user_id)
+    }
   }
 
   return NextResponse.json({ success: true })

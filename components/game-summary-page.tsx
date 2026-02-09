@@ -34,12 +34,12 @@ export function GameSummaryPage({ game, participants, matches, goals }: GameSumm
 
   // Calculate goal scorers ranking
   const scorerRanking = useMemo(() => {
-    const scorers: Record<string, { name: string; goals: number }> = {}
+    const scorers: Record<string, { name: string; goals: number; userId: string | null }> = {}
     goals.forEach((goal) => {
       const player = participants.find((p) => p.id === goal.participant_id)
       if (!player) return
       if (!scorers[goal.participant_id]) {
-        scorers[goal.participant_id] = { name: player.name, goals: 0 }
+        scorers[goal.participant_id] = { name: player.name, goals: 0, userId: player.user_id }
       }
       scorers[goal.participant_id].goals++
     })
@@ -208,7 +208,16 @@ export function GameSummaryPage({ game, participants, matches, goals }: GameSumm
                       }`}>
                         {index + 1}
                       </span>
-                      <span className="font-medium text-sm">{scorer.name}</span>
+                      {scorer.userId ? (
+                        <Link
+                          href={`/jogador/${scorer.userId}`}
+                          className="font-medium text-sm underline decoration-dotted underline-offset-2 hover:decoration-solid hover:text-primary transition-colors"
+                        >
+                          {scorer.name}
+                        </Link>
+                      ) : (
+                        <span className="font-medium text-sm">{scorer.name}</span>
+                      )}
                     </div>
                     <Badge variant={index === 0 ? "default" : "secondary"} className="text-xs tabular-nums">
                       {scorer.goals} {scorer.goals === 1 ? "gol" : "gols"}
@@ -261,15 +270,37 @@ export function GameSummaryPage({ game, participants, matches, goals }: GameSumm
                         <div className="border-t border-border px-3 py-2 flex gap-4 text-[10px] text-muted-foreground bg-muted/30">
                           <div className="flex-1 text-right space-y-0.5">
                             {teamAGoals.map((g) => {
-                              const name = participants.find((p) => p.id === g.participant_id)?.name || "?"
-                              return <p key={g.id}>{name} {g.minute != null ? formatTime(g.minute) : ""}</p>
+                              const player = participants.find((p) => p.id === g.participant_id)
+                              return (
+                                <p key={g.id}>
+                                  {player?.user_id ? (
+                                    <Link href={`/jogador/${player.user_id}`} className="hover:text-primary underline decoration-dotted underline-offset-2">
+                                      {player.name}
+                                    </Link>
+                                  ) : (
+                                    player?.name || "?"
+                                  )}
+                                  {g.minute != null ? ` ${formatTime(g.minute)}` : ""}
+                                </p>
+                              )
                             })}
                           </div>
                           <div className="w-px bg-border" />
                           <div className="flex-1 space-y-0.5">
                             {teamBGoals.map((g) => {
-                              const name = participants.find((p) => p.id === g.participant_id)?.name || "?"
-                              return <p key={g.id}>{name} {g.minute != null ? formatTime(g.minute) : ""}</p>
+                              const player = participants.find((p) => p.id === g.participant_id)
+                              return (
+                                <p key={g.id}>
+                                  {player?.user_id ? (
+                                    <Link href={`/jogador/${player.user_id}`} className="hover:text-primary underline decoration-dotted underline-offset-2">
+                                      {player.name}
+                                    </Link>
+                                  ) : (
+                                    player?.name || "?"
+                                  )}
+                                  {g.minute != null ? ` ${formatTime(g.minute)}` : ""}
+                                </p>
+                              )
                             })}
                           </div>
                         </div>
