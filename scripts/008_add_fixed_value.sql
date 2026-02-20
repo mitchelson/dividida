@@ -1,1 +1,0 @@
-ALTER TABLE games ADD COLUMN IF NOT EXISTS fixed_value_per_person NUMERIC DEFAULT NULL;
