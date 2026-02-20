@@ -27,7 +27,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Calendar,
   Clock,
@@ -39,27 +38,15 @@ import {
   Lock,
   LockOpen,
   MapPin,
-  User,
-  LogIn,
-  Trophy,
 } from "lucide-react"
 import type { Game, Participant, SportCategory } from "@/lib/types"
 import { SPORT_CATEGORIES } from "@/lib/types"
 
-interface UserSummary {
-  id: string
-  display_name: string | null
-  avatar_url: string | null
-  overall: number
-  position: string
-}
-
 interface GamesListPageProps {
   initialGames: (Game & { participants: Participant[] })[]
-  user?: UserSummary | null
 }
 
-export function GamesListPage({ initialGames, user }: GamesListPageProps) {
+export function GamesListPage({ initialGames }: GamesListPageProps) {
   const [games, setGames] = useState(initialGames)
   const [isCreating, setIsCreating] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -69,20 +56,20 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
     game_date: "",
     game_time: "",
     court_value: "",
-    location: "",
     password: "",
     category: "futebol" as SportCategory,
   })
 
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
   const { upcomingGames, pastGames } = useMemo(() => {
-    const now = new Date()
-    now.setHours(0, 0, 0, 0)
     const upcoming: (Game & { participants: Participant[] })[] = []
     const past: (Game & { participants: Participant[] })[] = []
 
     games.forEach((game) => {
       const gameDate = new Date(game.game_date + "T00:00:00")
-      if (gameDate >= now) {
+      if (gameDate >= today) {
         upcoming.push(game)
       } else {
         past.push(game)
@@ -93,7 +80,7 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
     past.sort((a, b) => new Date(b.game_date).getTime() - new Date(a.game_date).getTime())
 
     return { upcomingGames: upcoming, pastGames: past }
-  }, [games])
+  }, [games, today])
 
   const handleCreateGame = async () => {
     if (!newGame.name || !newGame.game_date || !newGame.game_time || !newGame.password) {
@@ -111,7 +98,6 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
           game_date: newGame.game_date,
           game_time: newGame.game_time,
           court_value: parseFloat(newGame.court_value) || 0,
-          location: newGame.location || null,
           password: newGame.password,
           category: newGame.category,
         }),
@@ -120,7 +106,7 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
       if (response.ok) {
         const createdGame = await response.json()
         setGames([...games, { ...createdGame, participants: [] }])
-        setNewGame({ name: "", game_date: "", game_time: "", court_value: "", location: "", password: "", category: "futebol" })
+        setNewGame({ name: "", game_date: "", game_time: "", court_value: "", password: "", category: "futebol" })
         setDialogOpen(false)
       }
     } catch (error) {
@@ -172,16 +158,11 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
                   </CardDescription>
                 </div>
               </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {game.champion_photo_url && (
-                  <Trophy className="h-4 w-4 text-yellow-500" />
-                )}
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
             </div>
           </CardHeader>
           <CardContent className="p-4 pt-2 space-y-3">
-            <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <Badge variant="outline" className="text-xs">
                 {categoryInfo.label}
               </Badge>
@@ -189,32 +170,7 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
                 <Clock className="h-3 w-3" />
                 {formatTime(game.game_time)}
               </span>
-              {game.list_closed ? (
-                <Badge variant="destructive" className="text-xs px-1.5 py-0">
-                  <Lock className="h-2.5 w-2.5 mr-0.5" />
-                  Fechada
-                </Badge>
-              ) : (
-                <Badge className="text-xs px-1.5 py-0 bg-emerald-600 text-white hover:bg-emerald-600">
-                  <LockOpen className="h-2.5 w-2.5 mr-0.5" />
-                  Aberta
-                </Badge>
-              )}
             </div>
-
-            {game.location && (
-              <div
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(game.location!)}`, "_blank")
-                }}
-              >
-                <MapPin className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate underline decoration-dotted underline-offset-2">{game.location}</span>
-              </div>
-            )}
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
@@ -253,141 +209,108 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
                 <p className="text-xs text-muted-foreground">Divida a conta facilmente</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {user ? (
-                <Link href="/perfil">
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2">
-                    <Avatar className="h-6 w-6 border border-primary/30">
-                      <AvatarImage src={user.avatar_url || undefined} />
-                      <AvatarFallback className="text-[10px] font-bold bg-primary/10 text-primary">
-                        {user.display_name?.slice(0, 2).toUpperCase() || "?"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="hidden sm:inline text-xs font-medium truncate max-w-20">
-                      {user.display_name || "Perfil"}
-                    </span>
-                  </Button>
-                </Link>
-              ) : (
-                <Link href="/auth/login">
-                  <Button variant="ghost" size="sm" className="h-8 text-xs">
-                    <LogIn className="h-3.5 w-3.5 mr-1" />
-                    Entrar
-                  </Button>
-                </Link>
-              )}
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    <span className="hidden sm:inline">Nova Partida</span>
-                    <span className="sm:hidden">Novo</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="mx-4 max-w-[calc(100%-2rem)] sm:max-w-md rounded-xl">
-                  <DialogHeader>
-                    <DialogTitle>Criar Nova Partida</DialogTitle>
-                    <DialogDescription>
-                      Preencha os dados da partida. A senha será usada para gerenciar os participantes.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-2">
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Nova Partida</span>
+                  <span className="sm:hidden">Novo</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="mx-4 max-w-[calc(100%-2rem)] sm:max-w-md rounded-xl">
+                <DialogHeader>
+                  <DialogTitle>Criar Nova Partida</DialogTitle>
+                  <DialogDescription>
+                    Preencha os dados da partida. A senha será usada para gerenciar os participantes.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nome da Partida</Label>
+                    <Input
+                      id="name"
+                      placeholder="Ex: Futebol de Sábado"
+                      value={newGame.name}
+                      onChange={(e) => setNewGame({ ...newGame, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Categoria</Label>
+                    <Select
+                      value={newGame.category}
+                      onValueChange={(value: SportCategory) => setNewGame({ ...newGame, category: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SPORT_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.value} value={cat.value}>
+                            <span className="flex items-center gap-2">
+                              <span>{cat.icon}</span>
+                              <span>{cat.label}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-3 grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Nome da Partida</Label>
+                      <Label htmlFor="date">Data</Label>
                       <Input
-                        id="name"
-                        placeholder="Ex: Futebol de Sábado"
-                        value={newGame.name}
-                        onChange={(e) => setNewGame({ ...newGame, name: e.target.value })}
+                        id="date"
+                        type="date"
+                        value={newGame.game_date}
+                        onChange={(e) => setNewGame({ ...newGame, game_date: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="category">Categoria</Label>
-                      <Select
-                        value={newGame.category}
-                        onValueChange={(value: SportCategory) => setNewGame({ ...newGame, category: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione a categoria" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SPORT_CATEGORIES.map((cat) => (
-                            <SelectItem key={cat.value} value={cat.value}>
-                              <span className="flex items-center gap-2">
-                                <span>{cat.icon}</span>
-                                <span>{cat.label}</span>
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-3 grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="date">Data</Label>
-                        <Input
-                          id="date"
-                          type="date"
-                          value={newGame.game_date}
-                          onChange={(e) => setNewGame({ ...newGame, game_date: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="time">Horário</Label>
-                        <Input
-                          id="time"
-                          type="time"
-                          value={newGame.game_time}
-                          onChange={(e) => setNewGame({ ...newGame, game_time: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="value">Valor da Quadra (R$)</Label>
+                      <Label htmlFor="time">Horário</Label>
                       <Input
-                        id="value"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="Ex: 200.00"
-                        value={newGame.court_value}
-                        onChange={(e) => setNewGame({ ...newGame, court_value: e.target.value })}
+                        id="time"
+                        type="time"
+                        value={newGame.game_time}
+                        onChange={(e) => setNewGame({ ...newGame, game_time: e.target.value })}
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="location">Local</Label>
-                      <Input
-                        id="location"
-                        placeholder="Ex: Arena Soccer, Campo do Parque..."
-                        value={newGame.location}
-                        onChange={(e) => setNewGame({ ...newGame, location: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Senha de Administração</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        placeholder="Senha para gerenciar a partida"
-                        value={newGame.password}
-                        onChange={(e) => setNewGame({ ...newGame, password: e.target.value })}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Guarde essa senha! Ela será necessária para aprovar participantes.
-                      </p>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setDialogOpen(false)} className="flex-1">
-                      Cancelar
-                    </Button>
-                    <Button onClick={handleCreateGame} disabled={isCreating} className="flex-1">
-                      {isCreating ? "Criando..." : "Criar"}
-                    </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor="value">Valor da Quadra (R$)</Label>
+                    <Input
+                      id="value"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Ex: 200.00"
+                      value={newGame.court_value}
+                      onChange={(e) => setNewGame({ ...newGame, court_value: e.target.value })}
+                    />
                   </div>
-                </DialogContent>
-              </Dialog>
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Senha de Administração</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Senha para gerenciar a partida"
+                      value={newGame.password}
+                      onChange={(e) => setNewGame({ ...newGame, password: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Guarde essa senha! Ela será necessária para aprovar participantes.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setDialogOpen(false)} className="flex-1">
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleCreateGame} disabled={isCreating} className="flex-1">
+                    {isCreating ? "Criando..." : "Criar"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </header>

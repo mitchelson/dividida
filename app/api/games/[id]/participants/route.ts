@@ -49,39 +49,13 @@ export async function POST(
       )
     }
 
-    // Check if the user is authenticated to link profile
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (user) {
-      // Check if this user already joined this game
-      const { data: existingByUser } = await supabase
-        .from("participants")
-        .select("id")
-        .eq("game_id", id)
-        .eq("user_id", user.id)
-        .maybeSingle()
-
-      if (existingByUser) {
-        return NextResponse.json(
-          { error: "Voce ja esta inscrito nesta partida" },
-          { status: 400 }
-        )
-      }
-    }
-
-    const insertData: Record<string, unknown> = {
-      game_id: id,
-      name,
-      status: "pending",
-    }
-
-    if (user) {
-      insertData.user_id = user.id
-    }
-
     const { data, error } = await supabase
       .from("participants")
-      .insert(insertData)
+      .insert({
+        game_id: id,
+        name,
+        status: "pending",
+      })
       .select()
       .single()
 

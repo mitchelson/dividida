@@ -1,7 +1,5 @@
 export type SportCategory = 'futebol' | 'futsal' | 'volei' | 'beachtenis' | 'futvolei'
 
-export type SortMode = 'payment' | 'teams' | 'arrival'
-
 export type ParticipantBadge = 'MVP' | 'Bola Murcha' | 'Artilheiro' | 'Craque' | 'Paredão' | 'Garçom' | 'Cestinha' | 'Ace' | 'Pipoqueiro'
 
 export const SPORT_CATEGORIES: { value: SportCategory; label: string; icon: string }[] = [
@@ -37,10 +35,6 @@ export interface Game {
   category: SportCategory
   list_closed: boolean
   location: string | null
-  sort_mode: SortMode
-  players_per_team: number
-  champion_photo_url: string | null
-  fixed_value_per_person: number | null
   created_at: string
   updated_at: string
 }
@@ -51,11 +45,7 @@ export interface Participant {
   name: string
   status: 'pending' | 'approved' | 'rejected'
   paid: boolean
-  paid_at: string | null
   badges: ParticipantBadge[]
-  sort_order: number
-  team_index: number | null
-  user_id: string | null
   created_at: string
   updated_at: string
 }
@@ -63,54 +53,3 @@ export interface Participant {
 export interface GameWithParticipants extends Game {
   participants: Participant[]
 }
-
-export type MatchStatus = 'pending' | 'playing' | 'finished'
-
-export interface Match {
-  id: string
-  game_id: string
-  team_a_name: string
-  team_b_name: string
-  score_a: number
-  score_b: number
-  status: MatchStatus
-  elapsed_seconds: number
-  match_order: number
-  created_at: string
-  updated_at: string
-}
-
-export interface Goal {
-  id: string
-  match_id: string
-  game_id: string
-  participant_id: string
-  team: 'a' | 'b'
-  minute: number | null
-  created_at: string
-}
-
-export interface PlayerProfile {
-  id: string
-  display_name: string | null
-  avatar_url: string | null
-  stat_pace: number
-  stat_shooting: number
-  stat_passing: number
-  stat_dribbling: number
-  stat_defending: number
-  stat_physical: number
-  overall: number
-  position: string
-  games_played: number
-  goals: number
-  assists: number
-  created_at: string
-  updated_at: string
-}
-
-export const POSITIONS = [
-  'GOL', 'ZAG', 'LE', 'LD', 'VOL', 'MC', 'ME', 'MD', 'MEI', 'SA', 'PE', 'PD', 'ATA'
-] as const
-
-export type PlayerPosition = typeof POSITIONS[number]

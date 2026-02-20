@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { name, game_date, game_time, court_value, password, category, location } = body
+    const { name, game_date, game_time, court_value, password, category } = body
 
     if (!name || !game_date || !game_time || !password) {
       return NextResponse.json(
@@ -26,7 +26,6 @@ export async function POST(request: Request) {
         court_value: court_value || 0,
         password_hash,
         category: category || "futebol",
-        location: location || null,
       })
       .select()
       .single()

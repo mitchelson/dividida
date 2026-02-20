@@ -12,22 +12,10 @@ export default async function Home() {
     .select("*, participants(*)")
     .order("game_date", { ascending: true })
 
-  const { data: { user } } = await supabase.auth.getUser()
-
-  let userProfile = null
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, display_name, avatar_url, overall, position")
-      .eq("id", user.id)
-      .single()
-    userProfile = profile
-  }
-
   const gamesWithParticipants = (games || []).map((game) => ({
     ...game,
     participants: game.participants || [],
   })) as (Game & { participants: Participant[] })[]
 
-  return <GamesListPage initialGames={gamesWithParticipants} user={userProfile} />
+  return <GamesListPage initialGames={gamesWithParticipants} />
 }
