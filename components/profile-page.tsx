@@ -38,9 +38,11 @@ import {
   Handshake,
   Swords,
   CalendarDays,
+  Palette,
   Camera,
   Loader2,
 } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { createClient } from "@/lib/supabase/client"
 import { PlayerCard } from "@/components/player-card"
 import type { PlayerProfile } from "@/lib/types"
@@ -392,6 +394,22 @@ export function ProfilePageClient({ initialProfile, userEmail, matchesPlayed = 0
                 <span className="text-muted-foreground">Overall</span>
                 <span className="text-primary font-bold">{profile.overall}</span>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Theme */}
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Palette className="h-4 w-4 text-primary" />
+              Aparencia
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Tema</span>
+              <ThemeToggle />
             </div>
           </CardContent>
         </Card>
