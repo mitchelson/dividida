@@ -36,6 +36,8 @@ import {
   Trophy,
   Target,
   Handshake,
+  Swords,
+  CalendarDays,
   Camera,
   Loader2,
 } from "lucide-react"
@@ -44,12 +46,20 @@ import { PlayerCard } from "@/components/player-card"
 import type { PlayerProfile } from "@/lib/types"
 import { POSITIONS } from "@/lib/types"
 
+interface RecentGame {
+  id: string
+  name: string
+  game_date: string
+}
+
 interface ProfilePageClientProps {
   initialProfile: PlayerProfile
   userEmail: string
+  matchesPlayed?: number
+  recentGames?: RecentGame[]
 }
 
-export function ProfilePageClient({ initialProfile, userEmail }: ProfilePageClientProps) {
+export function ProfilePageClient({ initialProfile, userEmail, matchesPlayed = 0, recentGames = [] }: ProfilePageClientProps) {
   const router = useRouter()
   const [profile, setProfile] = useState<PlayerProfile>(initialProfile)
   const [isSaving, setIsSaving] = useState(false)
@@ -65,9 +75,6 @@ export function ProfilePageClient({ initialProfile, userEmail }: ProfilePageClie
     stat_dribbling: profile.stat_dribbling,
     stat_defending: profile.stat_defending,
     stat_physical: profile.stat_physical,
-    games_played: profile.games_played,
-    goals: profile.goals,
-    assists: profile.assists,
   })
 
   const handleSave = async () => {
@@ -204,60 +211,6 @@ export function ProfilePageClient({ initialProfile, userEmail }: ProfilePageClie
 
                     <Separator />
 
-                    {/* Career Stats */}
-                    <div className="space-y-4">
-                      <h3 className="font-semibold text-sm flex items-center gap-2">
-                        <Trophy className="h-4 w-4 text-primary" />
-                        Carreira
-                      </h3>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="space-y-2">
-                          <Label className="text-xs">Jogos</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={editData.games_played}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                games_played: parseInt(e.target.value) || 0,
-                              })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs">Gols</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={editData.goals}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                goals: parseInt(e.target.value) || 0,
-                              })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs">Assistencias</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={editData.assists}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                assists: parseInt(e.target.value) || 0,
-                              })
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <Separator />
-
                     {/* Attributes */}
                     <div className="space-y-4">
                       <h3 className="font-semibold text-sm flex items-center gap-2">
@@ -368,26 +321,54 @@ export function ProfilePageClient({ initialProfile, userEmail }: ProfilePageClie
         <div className="grid grid-cols-3 gap-3">
           <Card>
             <CardContent className="p-3 text-center">
-              <Trophy className="h-5 w-5 text-primary mx-auto mb-1" />
-              <p className="text-2xl font-bold text-foreground">{profile.games_played}</p>
-              <p className="text-xs text-muted-foreground">Jogos</p>
+              <Swords className="h-4 w-4 mx-auto text-primary mb-1" />
+              <p className="text-xl font-bold text-foreground">{matchesPlayed || profile.games_played}</p>
+              <p className="text-[10px] text-muted-foreground">Partidas</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3 text-center">
-              <Target className="h-5 w-5 text-primary mx-auto mb-1" />
-              <p className="text-2xl font-bold text-foreground">{profile.goals}</p>
-              <p className="text-xs text-muted-foreground">Gols</p>
+              <Target className="h-4 w-4 mx-auto text-red-500 mb-1" />
+              <p className="text-xl font-bold text-foreground">{profile.goals}</p>
+              <p className="text-[10px] text-muted-foreground">Gols</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3 text-center">
-              <Handshake className="h-5 w-5 text-primary mx-auto mb-1" />
-              <p className="text-2xl font-bold text-foreground">{profile.assists}</p>
-              <p className="text-xs text-muted-foreground">Assist.</p>
+              <Trophy className="h-4 w-4 mx-auto text-yellow-500 mb-1" />
+              <p className="text-xl font-bold text-foreground">
+                {matchesPlayed > 0 ? (profile.goals / matchesPlayed).toFixed(1) : "0.0"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Gols/Partida</p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Recent Games */}
+        {recentGames.length > 0 && (
+          <Card>
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-primary" />
+                Jogos Recentes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <div className="space-y-2">
+                {recentGames.slice(0, 5).map((g) => (
+                  <Link key={g.id} href={`/jogo/${g.id}`} className="flex items-center justify-between py-1.5 border-b border-border last:border-0 hover:bg-muted/50 -mx-1 px-1 rounded transition-colors">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{g.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(g.game_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Account Info */}
         <Card>

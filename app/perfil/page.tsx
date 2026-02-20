@@ -20,7 +20,7 @@ export default async function PerfilPage() {
     redirect("/auth/login")
   }
 
-  // Compute real stats from database
+  // Compute real stats from database (same logic as /jogador/[id])
   const { data: userParticipants } = await supabase
     .from("participants")
     .select("id, game_id, team_index")
@@ -37,7 +37,7 @@ export default async function PerfilPage() {
 
   // Count matches played
   let matchesPlayed = 0
-  if (userParticipants) {
+  if (userParticipants && userParticipants.length > 0) {
     for (const p of userParticipants) {
       if (p.team_index == null) continue
       const teamName = `Time ${p.team_index + 1}`
@@ -51,11 +51,38 @@ export default async function PerfilPage() {
     }
   }
 
+  // Count unique games participated in
+  const uniqueGameIds = new Set(userParticipants?.map((p) => p.game_id) || [])
+  const gamesPlayed = uniqueGameIds.size
+
+  // Get recent goals with game info (for activity display)
+  const { data: recentGoals } = await supabase
+    .from("goals")
+    .select("id, match_id, minute, created_at, game_id")
+    .in("participant_id", participantIds.length > 0 ? participantIds : ["none"])
+    .order("created_at", { ascending: false })
+    .limit(10)
+
+  // Get game names for recent activity
+  const gameIds = [...new Set([...(userParticipants?.map((p) => p.game_id) || []), ...(recentGoals?.map((g) => g.game_id) || [])])]
+  const { data: games } = await supabase
+    .from("games")
+    .select("id, name, game_date")
+    .in("id", gameIds.length > 0 ? gameIds : ["none"])
+    .order("game_date", { ascending: false })
+
   const enrichedProfile = {
     ...profile,
     goals: totalGoals ?? profile.goals,
-    games_played: matchesPlayed || profile.games_played,
+    games_played: gamesPlayed || matchesPlayed || profile.games_played,
   }
 
-  return <ProfilePageClient initialProfile={enrichedProfile} userEmail={user.email || ""} />
+  return (
+    <ProfilePageClient
+      initialProfile={enrichedProfile}
+      userEmail={user.email || ""}
+      matchesPlayed={matchesPlayed}
+      recentGames={games || []}
+    />
+  )
 }
