@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { createClient } from '@supabase/supabase-js'
-import { Match, Goal, MatchEvent } from '@/lib/types'
+import { Match, MatchEvent } from '@/lib/types'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -27,23 +27,35 @@ export function PlacarView({ matchId }: { matchId: string }) {
   const [loading, setLoading] = useState(true)
   const [gameId, setGameId] = useState<string>('')
   const [elapsedTime, setElapsedTime] = useState(0)
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Calcular tempo decorrido baseado em started_at
   useEffect(() => {
-    if (!match?.started_at || match.status !== 'playing') {
-      setElapsedTime(match?.elapsed_seconds || 0)
+    if (!match) return
+
+    if (match.status !== 'playing' || !match.started_at) {
+      setElapsedTime(match.elapsed_seconds || 0)
+      if (intervalRef.current) clearInterval(intervalRef.current)
       return
     }
 
-    const timer = setInterval(() => {
+    const updateTime = () => {
       const startTime = new Date(match.started_at!).getTime()
       const now = new Date().getTime()
       const diffSeconds = Math.floor((now - startTime) / 1000)
-      setElapsedTime(diffSeconds)
-    }, 1000)
+      setElapsedTime(Math.max(0, diffSeconds))
+    }
 
-    return () => clearInterval(timer)
-  }, [match?.started_at, match?.status, match?.elapsed_seconds])
+    // Atualizar imediatamente
+    updateTime()
+
+    // E depois a cada segundo
+    intervalRef.current = setInterval(updateTime, 1000)
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [match?.status, match?.started_at, match?.elapsed_seconds])
 
   // Fetch match data
   useEffect(() => {

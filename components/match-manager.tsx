@@ -70,7 +70,6 @@ function MatchCard({
   onGoalsChange: () => void
 }) {
   const [elapsed, setElapsed] = useState(match.elapsed_seconds)
-  const [isRunning, setIsRunning] = useState(match.status === "playing")
   const [goalDialogOpen, setGoalDialogOpen] = useState(false)
   const [goalTeam, setGoalTeam] = useState<"a" | "b">("a")
   const [selectedScorer, setSelectedScorer] = useState("")
@@ -79,21 +78,36 @@ function MatchCard({
   const [editTeamAName, setEditTeamAName] = useState(match.team_a_name)
   const [editTeamBName, setEditTeamBName] = useState(match.team_b_name)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
-  const startTimeRef = useRef<number>(0)
 
-  // Chronometer logic
+  // Chronometer logic - baseado em started_at
   useEffect(() => {
-    if (isRunning) {
-      startTimeRef.current = Date.now() - elapsed * 1000
-      intervalRef.current = setInterval(() => {
-        const newElapsed = Math.floor((Date.now() - startTimeRef.current) / 1000)
-        setElapsed(newElapsed)
-      }, 1000)
+    if (match.status !== 'playing') {
+      setElapsed(match.elapsed_seconds || 0)
+      return
     }
+
+    if (!match.started_at) {
+      setElapsed(match.elapsed_seconds || 0)
+      return
+    }
+
+    const updateElapsed = () => {
+      const startTime = new Date(match.started_at!).getTime()
+      const now = new Date().getTime()
+      const diffSeconds = Math.floor((now - startTime) / 1000)
+      setElapsed(Math.max(0, diffSeconds))
+    }
+
+    // Atualizar imediatamente
+    updateElapsed()
+
+    // E depois a cada segundo
+    intervalRef.current = setInterval(updateElapsed, 1000)
+
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [isRunning]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [match.status, match.started_at, match.elapsed_seconds])
 
   const updateMatch = useCallback(
     async (data: Partial<Match>) => {
@@ -111,8 +125,7 @@ function MatchCard({
   )
 
   const handlePlay = async () => {
-    setIsRunning(true)
-    const updateData: Record<string, unknown> = { status: "playing", elapsed_seconds: elapsed }
+    const updateData: Record<string, unknown> = { status: "playing" }
     
     // Se for a primeira vez iniciando, salvar started_at
     if (!match.started_at) {
@@ -135,15 +148,22 @@ function MatchCard({
   }
 
   const handlePause = async () => {
-    setIsRunning(false)
-    if (intervalRef.current) clearInterval(intervalRef.current)
+    // Criar evento de pausa
+    await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        password: adminPassword,
+        event_type: "paused",
+        event_time: elapsed,
+        description: `Pausado em ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+      }),
+    }).catch(err => console.error("Erro ao criar evento:", err))
+    
     await updateMatch({ status: "playing", elapsed_seconds: elapsed })
   }
 
   const handleFinish = async () => {
-    setIsRunning(false)
-    if (intervalRef.current) clearInterval(intervalRef.current)
-    
     // Criar evento de encerramento
     await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
       method: "POST",
