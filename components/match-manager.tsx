@@ -160,7 +160,8 @@ function MatchCard({
       }),
     }).catch(err => console.error("Erro ao criar evento:", err))
     
-    await updateMatch({ status: "playing", elapsed_seconds: elapsed })
+    // Para a partida alterando o status
+    await updateMatch({ status: "draft", elapsed_seconds: elapsed })
   }
 
   const handleFinish = async () => {

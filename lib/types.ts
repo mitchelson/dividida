@@ -56,6 +56,7 @@ export interface Participant {
   sort_order: number
   team_index: number | null
   user_id: string | null
+  player_number: number | null
   created_at: string
   updated_at: string
 }
@@ -77,7 +78,6 @@ export interface Match {
   elapsed_seconds: number
   match_order: number
   enable_player_numbers: boolean
-  match_status: MatchStatus
   started_at: string | null
   created_at: string
   updated_at: string
