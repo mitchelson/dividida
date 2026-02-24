@@ -283,14 +283,14 @@ function MatchCard({
   const getPlayer = (id: string) => allParticipants.find((p) => p.id === id)
   const getPlayerName = (id: string) => getPlayer(id)?.name || "?"
 
-  const isFinished = match.status === "finished"
+  const isFinished = match.status === "completed"
 
   return (
     <Card className={`overflow-hidden ${isFinished ? "opacity-80" : ""}`}>
       <CardContent className="p-0">
         {/* Timer bar */}
         <div className={`flex items-center justify-center gap-2 py-1.5 text-xs font-mono ${
-          isRunning ? "bg-emerald-500 text-white" : isFinished ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
+          match.status === 'playing' ? "bg-emerald-500 text-white" : isFinished ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
         }`}>
           <Timer className="h-3 w-3" />
           {formatTime(elapsed)}
@@ -467,7 +467,7 @@ function MatchCard({
           <div className="flex items-center gap-1 border-t border-border p-2">
             {!isFinished && (
               <>
-                {!isRunning ? (
+                {match.status !== 'playing' ? (
                   <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handlePlay}>
                     <Play className="h-3 w-3 mr-1" />
                     {elapsed === 0 ? "Iniciar" : "Continuar"}
