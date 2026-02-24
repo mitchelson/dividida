@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { createClient } from '@supabase/supabase-js'
@@ -8,15 +8,6 @@ import { Match, MatchEvent } from '@/lib/types'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables')
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey)
 
 export function PlacarView({ matchId }: { matchId: string }) {
   const searchParams = useSearchParams()
@@ -28,6 +19,18 @@ export function PlacarView({ matchId }: { matchId: string }) {
   const [gameId, setGameId] = useState<string>('')
   const [elapsedTime, setElapsedTime] = useState(0)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Criar Supabase client apenas uma vez usando useMemo
+  const supabase = useMemo(() => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase environment variables')
+    }
+
+    return createClient(supabaseUrl, supabaseKey)
+  }, [])
 
   // Calcular tempo decorrido baseado em elapsed_seconds
   useEffect(() => {
