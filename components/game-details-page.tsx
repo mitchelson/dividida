@@ -324,6 +324,7 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
   const [newParticipantName, setNewParticipantName] = useState("")
   const [isAdding, setIsAdding] = useState(false)
   const [isUploadingChampion, setIsUploadingChampion] = useState(false)
+  const [enablePlayerNumbers, setEnablePlayerNumbers] = useState(false)
   const championInputRef = useRef<HTMLInputElement>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -556,6 +557,26 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
       }
     } catch (error) {
       console.error("Erro ao atualizar badges:", error)
+    }
+  }, [game.id, adminPassword])
+
+  const updateParticipantNumber = useCallback(async (participantId: string, playerNumber: number | null) => {
+    try {
+      const response = await fetch(`/api/games/${game.id}/participants/${participantId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ player_number: playerNumber, password: adminPassword }),
+      })
+      if (response.ok) {
+        setGame((prev) => ({
+          ...prev,
+          participants: prev.participants.map((p) =>
+            p.id === participantId ? { ...p, player_number: playerNumber } : p
+          ),
+        }))
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar número do jogador:", error)
     }
   }, [game.id, adminPassword])
 

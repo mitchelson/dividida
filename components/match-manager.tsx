@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
@@ -27,6 +28,10 @@ import {
   Timer,
   Loader2,
   Swords,
+  Pencil,
+  Check,
+  X,
+  BarChart3,
 } from "lucide-react"
 import type { Match, Goal, Participant } from "@/lib/types"
 
@@ -70,6 +75,9 @@ function MatchCard({
   const [goalTeam, setGoalTeam] = useState<"a" | "b">("a")
   const [selectedScorer, setSelectedScorer] = useState("")
   const [isAddingGoal, setIsAddingGoal] = useState(false)
+  const [editingTeamName, setEditingTeamName] = useState<"a" | "b" | null>(null)
+  const [editTeamAName, setEditTeamAName] = useState(match.team_a_name)
+  const [editTeamBName, setEditTeamBName] = useState(match.team_b_name)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const startTimeRef = useRef<number>(0)
 
@@ -175,6 +183,14 @@ function MatchCard({
     onGoalsChange()
   }
 
+  const saveTeamName = async (team: "a" | "b") => {
+    const newName = team === "a" ? editTeamAName : editTeamBName
+    await updateMatch(
+      team === "a" ? { team_a_name: newName } : { team_b_name: newName }
+    )
+    setEditingTeamName(null)
+  }
+
   const teamAPlayers = teamGroups[0]?.participants || []
   const teamBPlayers = teamGroups[1]?.participants || []
   const goalTeamPlayers = goalTeam === "a" ? teamAPlayers : teamBPlayers
@@ -205,7 +221,46 @@ function MatchCard({
         <div className="flex items-center p-3 gap-2">
           {/* Team A */}
           <div className="flex-1 text-center">
-            <p className="text-xs font-medium text-muted-foreground truncate">{match.team_a_name}</p>
+            {editingTeamName === "a" ? (
+              <div className="flex items-center gap-1 mb-1">
+                <Input
+                  value={editTeamAName}
+                  onChange={(e) => setEditTeamAName(e.target.value)}
+                  className="h-6 text-xs px-1"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => saveTeamName("a")}
+                  className="p-0.5 hover:bg-primary/20 rounded"
+                >
+                  <Check className="h-3.5 w-3.5 text-primary" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingTeamName(null)}
+                  className="p-0.5 hover:bg-destructive/20 rounded"
+                >
+                  <X className="h-3.5 w-3.5 text-destructive" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-1 group">
+                <p className="text-xs font-medium text-muted-foreground truncate">{match.team_a_name}</p>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingTeamName("a")
+                      setEditTeamAName(match.team_a_name)
+                    }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                  >
+                    <Pencil className="h-3 w-3 text-muted-foreground hover:text-primary" />
+                  </button>
+                )}
+              </div>
+            )}
             {isAdmin && !isFinished ? (
               <button
                 type="button"
@@ -227,7 +282,46 @@ function MatchCard({
 
           {/* Team B */}
           <div className="flex-1 text-center">
-            <p className="text-xs font-medium text-muted-foreground truncate">{match.team_b_name}</p>
+            {editingTeamName === "b" ? (
+              <div className="flex items-center gap-1 mb-1">
+                <Input
+                  value={editTeamBName}
+                  onChange={(e) => setEditTeamBName(e.target.value)}
+                  className="h-6 text-xs px-1"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => saveTeamName("b")}
+                  className="p-0.5 hover:bg-primary/20 rounded"
+                >
+                  <Check className="h-3.5 w-3.5 text-primary" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingTeamName(null)}
+                  className="p-0.5 hover:bg-destructive/20 rounded"
+                >
+                  <X className="h-3.5 w-3.5 text-destructive" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-1 group">
+                <p className="text-xs font-medium text-muted-foreground truncate">{match.team_b_name}</p>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingTeamName("b")
+                      setEditTeamBName(match.team_b_name)
+                    }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                  >
+                    <Pencil className="h-3 w-3 text-muted-foreground hover:text-primary" />
+                  </button>
+                )}
+              </div>
+            )}
             {isAdmin && !isFinished ? (
               <button
                 type="button"
@@ -308,6 +402,12 @@ function MatchCard({
                   <Square className="h-3 w-3 mr-1" />
                   Encerrar
                 </Button>
+                <Link href={`/jogo/${match.game_id}/placar?matchId=${match.id}`}>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs">
+                    <BarChart3 className="h-3 w-3 mr-1" />
+                    Placar
+                  </Button>
+                </Link>
               </>
             )}
             <div className="flex-1" />

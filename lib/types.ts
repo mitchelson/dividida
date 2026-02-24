@@ -64,7 +64,7 @@ export interface GameWithParticipants extends Game {
   participants: Participant[]
 }
 
-export type MatchStatus = 'pending' | 'playing' | 'finished'
+export type MatchStatus = 'draft' | 'playing' | 'completed'
 
 export interface Match {
   id: string
@@ -76,6 +76,8 @@ export interface Match {
   status: MatchStatus
   elapsed_seconds: number
   match_order: number
+  enable_player_numbers: boolean
+  match_status: MatchStatus
   created_at: string
   updated_at: string
 }
@@ -90,21 +92,18 @@ export interface Goal {
   created_at: string
 }
 
-export interface PlayerProfile {
+export interface Participant {
   id: string
-  display_name: string | null
-  avatar_url: string | null
-  stat_pace: number
-  stat_shooting: number
-  stat_passing: number
-  stat_dribbling: number
-  stat_defending: number
-  stat_physical: number
-  overall: number
-  position: string
-  games_played: number
-  goals: number
-  assists: number
+  game_id: string
+  name: string
+  status: 'pending' | 'approved' | 'rejected'
+  paid: boolean
+  paid_at: string | null
+  badges: ParticipantBadge[]
+  sort_order: number
+  team_index: number | null
+  user_id: string | null
+  player_number: number | null
   created_at: string
   updated_at: string
 }
