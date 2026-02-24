@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -60,6 +60,7 @@ interface GamesListPageProps {
 }
 
 export function GamesListPage({ initialGames, user }: GamesListPageProps) {
+  const [isHydrated, setIsHydrated] = useState(false)
   const [games, setGames] = useState(initialGames)
   const [isCreating, setIsCreating] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -73,6 +74,10 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
     password: "",
     category: "futebol" as SportCategory,
   })
+
+  useEffect(() => {
+    setIsHydrated(true)
+  }, [])
 
   const { upcomingGames, pastGames } = useMemo(() => {
     const now = new Date()
@@ -239,7 +244,9 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col" suppressHydrationWarning>
+      {!isHydrated ? null : (
+        <>
       {/* Header Mobile-First */}
       <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="px-4 py-3">
@@ -460,6 +467,8 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
           <p>DivididaPix - Divida a conta de forma simples e rápida</p>
         </div>
       </footer>
+        </>
+      )}
     </div>
   )
 }

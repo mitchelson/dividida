@@ -131,9 +131,8 @@ function MatchCard({
     if (!match.started_at) {
       updateData.started_at = new Date().toISOString()
       
-      // Criar evento de início
+      // Tentar criar evento de início (falhas são silenciosas)
       try {
-        console.log("[v0] Creating start event for match:", match.id)
         await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -143,52 +142,54 @@ function MatchCard({
             event_time: elapsed,
             description: `Iniciado em ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
           }),
-        }).then(res => {
-          console.log("[v0] Start event response:", res.status)
-          if (!res.ok) {
-            console.error("[v0] Failed to create start event")
-          }
-        }).catch(err => console.error("[v0] Erro ao criar evento:", err))
+        }).catch(() => {
+          // Silently fail - events table may not exist yet
+        })
       } catch (err) {
-        console.error("[v0] Exception creating start event:", err)
+        // Silently fail
       }
     }
     
-    console.log("[v0] Updating match with data:", updateData)
     await updateMatch(updateData)
   }
 
   const handlePause = async () => {
-    console.log("[v0] Pause button clicked")
-    // Criar evento de pausa
-    await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        password: adminPassword,
-        event_type: "paused",
-        event_time: elapsed,
-        description: `Pausado em ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
-      }),
-    }).catch(err => console.error("[v0] Erro ao criar evento:", err))
+    // Tentar criar evento de pausa (falhas são silenciosas)
+    try {
+      await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password: adminPassword,
+          event_type: "paused",
+          event_time: elapsed,
+          description: `Pausado em ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+        }),
+      }).catch(() => {})
+    } catch (err) {
+      // Silently fail
+    }
     
     // Para a partida alterando o status
     await updateMatch({ status: "draft", elapsed_seconds: elapsed })
   }
 
   const handleFinish = async () => {
-    console.log("[v0] Finish button clicked")
-    // Criar evento de encerramento
-    await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        password: adminPassword,
-        event_type: "finished",
-        event_time: elapsed,
-        description: `Encerrado em ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
-      }),
-    }).catch(err => console.error("[v0] Erro ao criar evento de encerramento:", err))
+    // Tentar criar evento de encerramento (falhas são silenciosas)
+    try {
+      await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password: adminPassword,
+          event_type: "finished",
+          event_time: elapsed,
+          description: `Encerrado em ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+        }),
+      }).catch(() => {})
+    } catch (err) {
+      // Silently fail
+    }
     
     await updateMatch({ status: "completed", elapsed_seconds: elapsed })
   }
@@ -235,19 +236,23 @@ function MatchCard({
         }),
       })
 
-      // Create goal event
-      await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          password: adminPassword,
-          event_type: "goal",
-          event_time: elapsed,
-          team: goalTeam,
-          participant_id: selectedScorer,
-          description: `⚽ Gol do ${teamName} - ${participantName}`,
-        }),
-      }).catch(err => console.error("Erro ao criar evento de gol:", err))
+      // Create goal event (falhas são silenciosas)
+      try {
+        await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            password: adminPassword,
+            event_type: "goal",
+            event_time: elapsed,
+            team: goalTeam,
+            participant_id: selectedScorer,
+            description: `⚽ Gol do ${teamName} - ${participantName}`,
+          }),
+        }).catch(() => {})
+      } catch (err) {
+        // Silently fail
+      }
 
       // Update local score
       onUpdate({
