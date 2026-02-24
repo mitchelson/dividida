@@ -320,7 +320,7 @@ function MatchCard({
 
       {/* Goal Dialog */}
       <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="mx-4 max-w-[calc(100%-2rem)] sm:max-w-sm rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-sm">
               Gol - {goalTeam === "a" ? match.team_a_name : match.team_b_name}
@@ -477,7 +477,7 @@ export function MatchManager({ gameId, adminPassword, isAdmin, teamGroups }: Mat
           </Button>
 
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-            <DialogContent className="max-w-sm">
+            <DialogContent className="mx-4 max-w-[calc(100%-2rem)] sm:max-w-sm rounded-xl">
               <DialogHeader>
                 <DialogTitle className="text-sm">Criar Partida</DialogTitle>
               </DialogHeader>

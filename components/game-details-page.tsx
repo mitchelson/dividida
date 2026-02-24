@@ -1138,9 +1138,9 @@ export function GameDetailsPage({ initialGame, currentUser, participantProfiles 
                       Admin
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="mx-4 max-w-[calc(100%-2rem)] sm:max-w-md rounded-xl">
-                    <DialogHeader>
-                      <DialogTitle>Acesso de Administrador</DialogTitle>
+                    <DialogContent className="mx-4 max-w-[calc(100%-2rem)] sm:max-w-md max-h-[90vh] overflow-y-auto rounded-xl">
+                      <DialogHeader>
+                        <DialogTitle>Acesso de Administrador</DialogTitle>
                       <DialogDescription>
                         Digite a senha para gerenciar participantes e editar a partida
                       </DialogDescription>
