@@ -112,7 +112,26 @@ function MatchCard({
 
   const handlePlay = async () => {
     setIsRunning(true)
-    await updateMatch({ status: "playing", elapsed_seconds: elapsed })
+    const updateData: Record<string, unknown> = { status: "playing", elapsed_seconds: elapsed }
+    
+    // Se for a primeira vez iniciando, salvar started_at
+    if (!match.started_at) {
+      updateData.started_at = new Date().toISOString()
+      
+      // Criar evento de início
+      await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password: adminPassword,
+          event_type: "started",
+          event_time: elapsed,
+          description: `Iniciado em ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+        }),
+      }).catch(err => console.error("Erro ao criar evento:", err))
+    }
+    
+    await updateMatch(updateData)
   }
 
   const handlePause = async () => {
@@ -124,7 +143,20 @@ function MatchCard({
   const handleFinish = async () => {
     setIsRunning(false)
     if (intervalRef.current) clearInterval(intervalRef.current)
-    await updateMatch({ status: "finished", elapsed_seconds: elapsed })
+    
+    // Criar evento de encerramento
+    await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        password: adminPassword,
+        event_type: "finished",
+        event_time: elapsed,
+        description: `Encerrado em ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+      }),
+    }).catch(err => console.error("Erro ao criar evento de encerramento:", err))
+    
+    await updateMatch({ status: "completed", elapsed_seconds: elapsed })
   }
 
   const handleDelete = async () => {
@@ -146,6 +178,18 @@ function MatchCard({
     if (!selectedScorer) return
     setIsAddingGoal(true)
     try {
+      // Get participant name from teamGroups
+      let participantName = 'Jogador'
+      for (const group of teamGroups) {
+        const participant = group.participants.find(p => p.id === selectedScorer)
+        if (participant) {
+          participantName = participant.name
+          break
+        }
+      }
+      
+      const teamName = goalTeam === 'a' ? match.team_a_name : match.team_b_name
+      
       await fetch(`/api/games/${gameId}/matches/${match.id}/goals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -156,6 +200,21 @@ function MatchCard({
           minute: elapsed,
         }),
       })
+
+      // Create goal event
+      await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password: adminPassword,
+          event_type: "goal",
+          event_time: elapsed,
+          team: goalTeam,
+          participant_id: selectedScorer,
+          description: `⚽ Gol do ${teamName} - ${participantName}`,
+        }),
+      }).catch(err => console.error("Erro ao criar evento de gol:", err))
+
       // Update local score
       onUpdate({
         ...match,

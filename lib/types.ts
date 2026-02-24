@@ -78,6 +78,7 @@ export interface Match {
   match_order: number
   enable_player_numbers: boolean
   match_status: MatchStatus
+  started_at: string | null
   created_at: string
   updated_at: string
 }
@@ -92,20 +93,16 @@ export interface Goal {
   created_at: string
 }
 
-export interface Participant {
+export interface MatchEvent {
   id: string
+  match_id: string
   game_id: string
-  name: string
-  status: 'pending' | 'approved' | 'rejected'
-  paid: boolean
-  paid_at: string | null
-  badges: ParticipantBadge[]
-  sort_order: number
-  team_index: number | null
-  user_id: string | null
-  player_number: number | null
+  event_type: 'started' | 'paused' | 'resumed' | 'finished' | 'goal'
+  event_time: number
+  participant_id: string | null
+  team: 'a' | 'b' | null
+  description: string | null
   created_at: string
-  updated_at: string
 }
 
 export const POSITIONS = [

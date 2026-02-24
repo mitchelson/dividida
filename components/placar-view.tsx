@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { createClient } from '@supabase/supabase-js'
-import { Match, Goal } from '@/lib/types'
-import { Play, Pause, Plus, ArrowLeft } from 'lucide-react'
+import { Match, Goal, MatchEvent } from '@/lib/types'
+import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 
@@ -23,10 +23,29 @@ export function PlacarView({ matchId }: { matchId: string }) {
   const realMatchId = searchParams?.get('matchId') || matchId
   
   const [match, setMatch] = useState<Match | null>(null)
-  const [goals, setGoals] = useState<Goal[]>([])
+  const [events, setEvents] = useState<MatchEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [gameId, setGameId] = useState<string>('')
+  const [elapsedTime, setElapsedTime] = useState(0)
 
+  // Calcular tempo decorrido baseado em started_at
+  useEffect(() => {
+    if (!match?.started_at || match.status !== 'playing') {
+      setElapsedTime(match?.elapsed_seconds || 0)
+      return
+    }
+
+    const timer = setInterval(() => {
+      const startTime = new Date(match.started_at!).getTime()
+      const now = new Date().getTime()
+      const diffSeconds = Math.floor((now - startTime) / 1000)
+      setElapsedTime(diffSeconds)
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [match?.started_at, match?.status, match?.elapsed_seconds])
+
+  // Fetch match data
   useEffect(() => {
     const fetchMatch = async () => {
       try {
@@ -44,6 +63,7 @@ export function PlacarView({ matchId }: { matchId: string }) {
 
         setMatch(data as Match)
         setGameId(data.game_id)
+        setElapsedTime(data.elapsed_seconds || 0)
         setLoading(false)
       } catch (err) {
         console.error('Exception fetching match:', err)
@@ -53,54 +73,65 @@ export function PlacarView({ matchId }: { matchId: string }) {
 
     if (realMatchId) {
       fetchMatch()
+      
+      // Subscribe to match updates
+      const subscription = supabase
+        .channel(`matches_${realMatchId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'matches',
+            filter: `id=eq.${realMatchId}`,
+          },
+          (payload) => {
+            setMatch(payload.new as Match)
+          }
+        )
+        .subscribe()
+
+      return () => {
+        subscription.unsubscribe()
+      }
     }
   }, [realMatchId])
 
+  // Fetch match events
   useEffect(() => {
     if (!realMatchId) return
 
-    const fetchGoals = async () => {
+    const fetchEvents = async () => {
       try {
         const { data, error } = await supabase
-          .from('goals')
+          .from('match_events')
           .select('*')
           .eq('match_id', realMatchId)
           .order('created_at', { ascending: false })
 
-        if (error) {
-          console.error('Error fetching goals:', error)
-          return
+        if (!error && data) {
+          setEvents(data as MatchEvent[])
         }
-
-        setGoals(data as Goal[])
       } catch (err) {
-        console.error('Exception fetching goals:', err)
+        console.error('Exception fetching events:', err)
       }
     }
 
-    fetchGoals()
+    fetchEvents()
 
-    // Subscribe to real-time updates
+    // Subscribe to new events
     const subscription = supabase
-      .channel(`goals_${realMatchId}`)
+      .channel(`events_${realMatchId}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
-          table: 'goals',
+          table: 'match_events',
           filter: `match_id=eq.${realMatchId}`,
         },
         (payload) => {
-          setGoals((prev) => {
-            if (payload.new) {
-              const newGoals = [payload.new as Goal, ...prev]
-              return newGoals.sort((a, b) => 
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-              )
-            }
-            return prev
-          })
+          setEvents((prev) => [payload.new as MatchEvent, ...prev])
         }
       )
       .subscribe()
@@ -110,16 +141,13 @@ export function PlacarView({ matchId }: { matchId: string }) {
     }
   }, [realMatchId])
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
+  const minutes = Math.floor(elapsedTime / 60)
+  const seconds = elapsedTime % 60
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p>Carregando...</p>
+        <p className="text-muted-foreground">Carregando...</p>
       </div>
     )
   }
@@ -127,21 +155,20 @@ export function PlacarView({ matchId }: { matchId: string }) {
   if (!match) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-        <p>Partida não encontrada</p>
-        {gameId && (
-          <Link href={`/jogo/${gameId}`}>
-            <Button variant="outline">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
-            </Button>
-          </Link>
-        )}
+        <p className="text-muted-foreground">Partida não encontrada</p>
+        <Link href={`/jogo/${gameId}`}>
+          <Button variant="outline">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
+        </Link>
       </div>
     )
   }
 
-  const minutes = Math.floor(match.elapsed_seconds / 60)
-  const seconds = match.elapsed_seconds % 60
+  // Filtrar eventos por tipo para exibição
+  const startedEvents = events.filter(e => e.event_type === 'started')
+  const goalEvents = events.filter(e => e.event_type === 'goal')
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 flex flex-col">
@@ -169,7 +196,7 @@ export function PlacarView({ matchId }: { matchId: string }) {
               {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
             </div>
             <div className="text-xs text-muted-foreground">
-              {match.status === 'playing' ? '🔴 AO VIVO' : '⏸ PAUSADO'}
+              {match.status === 'playing' ? '🔴 AO VIVO' : match.status === 'draft' ? '⏲ AGENDADA' : '✓ ENCERRADA'}
             </div>
           </div>
 
@@ -182,37 +209,57 @@ export function PlacarView({ matchId }: { matchId: string }) {
 
       {/* Events Timeline */}
       <Card className="flex-1 mb-6 p-4 flex flex-col">
-        <h2 className="font-semibold text-lg mb-4">Eventos Recentes</h2>
-        <div className="flex-1 overflow-y-auto space-y-3">
-          {goals.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">Nenhum evento ainda</p>
+        <h2 className="font-semibold text-lg mb-4">Timeline de Eventos</h2>
+        <div className="flex-1 overflow-y-auto space-y-2">
+          {events.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Nenhum evento registrado</p>
           ) : (
-            goals.map((goal) => (
-              <div key={goal.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded">
-                <div className={`w-3 h-3 rounded-full flex-shrink-0 ${goal.team === 'a' ? 'bg-blue-600' : 'bg-red-600'}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm">{goal.team === 'a' ? match.team_a_name : match.team_b_name}</p>
-                  {goal.minute !== null && (
-                    <p className="text-xs text-muted-foreground">{goal.minute}' min</p>
-                  )}
+            events.map((event) => {
+              const eventLabel = {
+                'started': '▶️ Iniciado',
+                'paused': '⏸ Pausado',
+                'resumed': '▶️ Retomado',
+                'finished': '✓ Encerrado',
+                'goal': '⚽ Gol',
+              }[event.event_type] || event.event_type
+
+              return (
+                <div key={event.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded text-sm">
+                  <div className="flex-shrink-0 w-1 h-1 rounded-full bg-primary mt-1.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="font-semibold">{eventLabel}</span>
+                      {event.event_type === 'goal' && event.team && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${event.team === 'a' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200'}`}>
+                          {event.team === 'a' ? match.team_a_name : match.team_b_name}
+                        </span>
+                      )}
+                    </div>
+                    {event.description && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{event.description}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(event.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </Card>
 
-      {/* Quick Action Buttons */}
-      <div className="grid grid-cols-2 gap-3">
-        <Button variant="outline" size="lg" disabled className="h-14">
-          <Plus className="h-5 w-5 mr-2" />
-          Gol {match.team_a_name}
-        </Button>
-        <Button variant="outline" size="lg" disabled className="h-14">
-          <Plus className="h-5 w-5 mr-2" />
-          Gol {match.team_b_name}
-        </Button>
-      </div>
+      {/* Info Box */}
+      <Card className="p-4 bg-secondary/50">
+        <p className="text-xs text-muted-foreground text-center">
+          {startedEvents.length > 0 && (
+            <>
+              Partida iniciada às {new Date(startedEvents[0]!.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} •{' '}
+            </>
+          )}
+          {goalEvents.length} gol{goalEvents.length !== 1 ? 's' : ''} registrado{goalEvents.length !== 1 ? 's' : ''}
+        </p>
+      </Card>
     </div>
   )
 }
