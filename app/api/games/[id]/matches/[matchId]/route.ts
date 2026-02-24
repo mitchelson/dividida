@@ -36,7 +36,7 @@ export async function PUT(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // If match just finished, update games_played for all participants in both teams
-  if (updateData.status === "finished" && existingMatch?.status !== "finished") {
+  if (updateData.status === "completed" && existingMatch?.status !== "completed") {
     const teamNames = [existingMatch?.team_a_name, existingMatch?.team_b_name].filter(Boolean)
 
     // Get all participants of this game
@@ -88,7 +88,7 @@ export async function PUT(
               .from("matches")
               .select("team_a_name, team_b_name")
               .eq("game_id", gameId)
-              .eq("status", "finished")
+              .eq("status", "completed")
 
             if (finishedMatches) {
               finishedMatches.forEach((fm) => {

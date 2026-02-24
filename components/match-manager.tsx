@@ -132,22 +132,34 @@ function MatchCard({
       updateData.started_at = new Date().toISOString()
       
       // Criar evento de início
-      await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          password: adminPassword,
-          event_type: "started",
-          event_time: elapsed,
-          description: `Iniciado em ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
-        }),
-      }).catch(err => console.error("Erro ao criar evento:", err))
+      try {
+        console.log("[v0] Creating start event for match:", match.id)
+        await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            password: adminPassword,
+            event_type: "started",
+            event_time: elapsed,
+            description: `Iniciado em ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+          }),
+        }).then(res => {
+          console.log("[v0] Start event response:", res.status)
+          if (!res.ok) {
+            console.error("[v0] Failed to create start event")
+          }
+        }).catch(err => console.error("[v0] Erro ao criar evento:", err))
+      } catch (err) {
+        console.error("[v0] Exception creating start event:", err)
+      }
     }
     
+    console.log("[v0] Updating match with data:", updateData)
     await updateMatch(updateData)
   }
 
   const handlePause = async () => {
+    console.log("[v0] Pause button clicked")
     // Criar evento de pausa
     await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
       method: "POST",
@@ -158,13 +170,14 @@ function MatchCard({
         event_time: elapsed,
         description: `Pausado em ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
       }),
-    }).catch(err => console.error("Erro ao criar evento:", err))
+    }).catch(err => console.error("[v0] Erro ao criar evento:", err))
     
     // Para a partida alterando o status
     await updateMatch({ status: "draft", elapsed_seconds: elapsed })
   }
 
   const handleFinish = async () => {
+    console.log("[v0] Finish button clicked")
     // Criar evento de encerramento
     await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
       method: "POST",
@@ -175,7 +188,7 @@ function MatchCard({
         event_time: elapsed,
         description: `Encerrado em ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
       }),
-    }).catch(err => console.error("Erro ao criar evento de encerramento:", err))
+    }).catch(err => console.error("[v0] Erro ao criar evento de encerramento:", err))
     
     await updateMatch({ status: "completed", elapsed_seconds: elapsed })
   }
