@@ -46,7 +46,7 @@ export function PlacarView({ matchId }: { matchId: string }) {
     setElapsedTime(match.elapsed_seconds || 0)
   }, [match?.status, match?.elapsed_seconds])
 
-  // Fetch match data
+  // Fetch match data with polling instead of realtime subscriptions
   useEffect(() => {
     const fetchMatch = async () => {
       try {
@@ -74,31 +74,19 @@ export function PlacarView({ matchId }: { matchId: string }) {
 
     if (realMatchId) {
       fetchMatch()
-      
-      // Subscribe to match updates
-      const subscription = supabase
-        .channel(`matches_${realMatchId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'matches',
-            filter: `id=eq.${realMatchId}`,
-          },
-          (payload) => {
-            setMatch(payload.new as Match)
-          }
-        )
-        .subscribe()
+
+      // Use polling instead of realtime subscriptions to avoid excessive /api/uncommitted-marker requests
+      const pollInterval = setInterval(() => {
+        fetchMatch()
+      }, 5000) // Poll every 5 seconds
 
       return () => {
-        subscription.unsubscribe()
+        clearInterval(pollInterval)
       }
     }
-  }, [realMatchId])
+  }, [realMatchId, supabase])
 
-  // Fetch match events
+  // Fetch match events with polling instead of realtime subscriptions
   useEffect(() => {
     if (!realMatchId) return
 
@@ -120,27 +108,15 @@ export function PlacarView({ matchId }: { matchId: string }) {
 
     fetchEvents()
 
-    // Subscribe to new events
-    const subscription = supabase
-      .channel(`events_${realMatchId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'match_events',
-          filter: `match_id=eq.${realMatchId}`,
-        },
-        (payload) => {
-          setEvents((prev) => [payload.new as MatchEvent, ...prev])
-        }
-      )
-      .subscribe()
+    // Poll for new events every 5 seconds
+    const pollInterval = setInterval(() => {
+      fetchEvents()
+    }, 5000)
 
     return () => {
-      subscription.unsubscribe()
+      clearInterval(pollInterval)
     }
-  }, [realMatchId])
+  }, [realMatchId, supabase])
 
   const minutes = Math.floor(elapsedTime / 60)
   const seconds = elapsedTime % 60
