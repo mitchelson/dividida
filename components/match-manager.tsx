@@ -129,26 +129,25 @@ function MatchCard({
     const updateData: Record<string, unknown> = { status: "playing" }
     
     // Se for a primeira vez iniciando, salvar started_at
-    if (!match.started_at) {
-      updateData.started_at = new Date().toISOString()
-      
-      // Tentar criar evento de início (falhas são silenciosas)
-      try {
-        await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            password: adminPassword,
-            event_type: "started",
-            event_time: elapsed,
-            description: `Iniciado em ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
-          }),
-        }).catch(() => {
-          // Silently fail - events table may not exist yet
-        })
-      } catch (err) {
-        // Silently fail
-      }
+    // NOTA: started_at será adicionado quando a coluna for criada no banco de dados
+    // Por enquanto, apenas atualizamos o status
+    
+    // Tentar criar evento de início (falhas são silenciosas)
+    try {
+      await fetch(`/api/games/${gameId}/matches/${match.id}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password: adminPassword,
+          event_type: "started",
+          event_time: elapsed,
+          description: `Iniciado em ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+        }),
+      }).catch(() => {
+        // Silently fail - events table may not exist yet
+      })
+    } catch (err) {
+      // Silently fail
     }
     
     await updateMatch(updateData)

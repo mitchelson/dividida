@@ -18,6 +18,10 @@ export async function PUT(
   const isValid = await bcrypt.compare(password, game.password_hash)
   if (!isValid) return NextResponse.json({ error: "Senha incorreta" }, { status: 401 })
 
+  // Remover started_at se estiver sendo enviado (coluna pode não existir ainda no banco)
+  const safeUpdateData = { ...updateData }
+  delete safeUpdateData.started_at
+
   // Check if the match was NOT finished before and is now being finished
   const { data: existingMatch } = await supabase
     .from("matches")
@@ -27,7 +31,7 @@ export async function PUT(
 
   const { data, error } = await supabase
     .from("matches")
-    .update(updateData)
+    .update(safeUpdateData)
     .eq("id", matchId)
     .eq("game_id", id)
     .select()

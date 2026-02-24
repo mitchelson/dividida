@@ -29,33 +29,19 @@ export function PlacarView({ matchId }: { matchId: string }) {
   const [elapsedTime, setElapsedTime] = useState(0)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Calcular tempo decorrido baseado em started_at
+  // Calcular tempo decorrido baseado em elapsed_seconds
   useEffect(() => {
     if (!match) return
 
-    if (match.status !== 'playing' || !match.started_at) {
+    if (match.status !== 'playing') {
       setElapsedTime(match.elapsed_seconds || 0)
       if (intervalRef.current) clearInterval(intervalRef.current)
       return
     }
 
-    const updateTime = () => {
-      const startTime = new Date(match.started_at!).getTime()
-      const now = new Date().getTime()
-      const diffSeconds = Math.floor((now - startTime) / 1000)
-      setElapsedTime(Math.max(0, diffSeconds))
-    }
-
-    // Atualizar imediatamente
-    updateTime()
-
-    // E depois a cada segundo
-    intervalRef.current = setInterval(updateTime, 1000)
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-    }
-  }, [match?.status, match?.started_at, match?.elapsed_seconds])
+    // Mostrar apenas elapsed_seconds por agora
+    setElapsedTime(match.elapsed_seconds || 0)
+  }, [match?.status, match?.elapsed_seconds])
 
   // Fetch match data
   useEffect(() => {
