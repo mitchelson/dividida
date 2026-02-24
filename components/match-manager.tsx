@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -523,6 +524,9 @@ function MatchCard({
             <DialogTitle className="text-sm">
               Gol - {goalTeam === "a" ? match.team_a_name : match.team_b_name}
             </DialogTitle>
+            <DialogDescription>
+              Selecione o jogador que marcou o gol
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Select value={selectedScorer} onValueChange={setSelectedScorer}>
@@ -678,6 +682,9 @@ export function MatchManager({ gameId, adminPassword, isAdmin, teamGroups }: Mat
             <DialogContent className="mx-4 max-w-[calc(100%-2rem)] sm:max-w-sm rounded-xl">
               <DialogHeader>
                 <DialogTitle className="text-sm">Criar Partida</DialogTitle>
+                <DialogDescription>
+                  Selecione os jogadores para cada time
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-3">
                 <div className="space-y-1.5">
