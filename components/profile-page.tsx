@@ -322,7 +322,7 @@ export function ProfilePageClient({ initialProfile, userEmail, matchesPlayed = 0
           <Card>
             <CardContent className="p-3 text-center">
               <Swords className="h-4 w-4 mx-auto text-primary mb-1" />
-              <p className="text-xl font-bold text-foreground">{matchesPlayed || profile.games_played}</p>
+              <p className="text-xl font-bold text-foreground">{matchesPlayed}</p>
               <p className="text-[10px] text-muted-foreground">Partidas</p>
             </CardContent>
           </Card>

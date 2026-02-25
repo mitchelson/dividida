@@ -255,7 +255,7 @@ export function GamesListPage({ initialGames, user }: GamesListPageProps) {
             </div>
             <div className="flex items-center gap-2">
               {user ? (
-                <Link href="/perfil">
+                <Link href={`/jogador/${user.id}`}>
                   <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2">
                     <Avatar className="h-6 w-6 border border-primary/30">
                       <AvatarImage src={user.avatar_url || undefined} />
