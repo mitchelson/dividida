@@ -31,6 +31,7 @@ export default async function JogadorPage({
     .eq("user_id", id)
     .eq("status", "approved")
 
+  console.log("[v0] User participants:", userParticipants)
   const participantIds = userParticipants?.map((p) => p.id) || []
 
   // Count goals from goals table
@@ -61,15 +62,29 @@ export default async function JogadorPage({
     for (const p of userParticipants) {
       if (p.team_index == null) continue
       const teamName = `Time ${p.team_index + 1}`
-      const { count } = await supabase
+      console.log("[v0] Searching for matches - Game:", p.game_id, "Team:", teamName)
+      
+      // Search for matches where this team name appears in either team_a_name or team_b_name
+      const { count: countA } = await supabase
         .from("matches")
         .select("id", { count: "exact", head: true })
         .eq("game_id", p.game_id)
         .eq("status", "finished")
-        .or(`team_a_name.eq.${teamName},team_b_name.eq.${teamName}`)
-      matchesPlayed += count || 0
+        .eq("team_a_name", teamName)
+      
+      const { count: countB } = await supabase
+        .from("matches")
+        .select("id", { count: "exact", head: true })
+        .eq("game_id", p.game_id)
+        .eq("status", "finished")
+        .eq("team_b_name", teamName)
+      
+      const gameMatches = (countA || 0) + (countB || 0)
+      console.log("[v0] Found team_a:", countA, "team_b:", countB, "total:", gameMatches)
+      matchesPlayed += gameMatches
     }
   }
+  console.log("[v0] Total matchesPlayed:", matchesPlayed)
 
   const enrichedProfile = {
     ...profile,
